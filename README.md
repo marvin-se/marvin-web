@@ -28,8 +28,8 @@ This section outlines the tasks assigned to the web frontend team, based on the 
 
 ### T6: Listings and Browsing Pages
 - **ID T6.1:** [x] Implement product listings page with data fetching (mock).
-- **ID T6.2:** [ ] Add filtering by category, university, and keywords.
-- **ID T6.3:** [ ] Support pagination or infinite scrolling.
+- **ID T6.2:** [x] Add filtering by category, university, and keywords.
+- **ID T6.3:** [x] Support pagination or infinite scrolling.
 - **ID T6.4:** [x] Handle empty state and loading indicators.
 
 ### T7: Messaging and Interaction UI
@@ -39,7 +39,7 @@ This section outlines the tasks assigned to the web frontend team, based on the 
 - **ID T7.4:** [ ] Display user online status/typing indicators.
 
 ### T9: Favorites and Profile Management
-- **ID T9.1:** [ ] Implement “Add to Favorites” and manage saved items.
+- **ID T9.1:** [x] Implement “Add to Favorites” and manage saved items.
 - **ID T9.2:** [x] Develop profile dashboard with user activity summary (mock).
 - **ID T9.3:** [ ] Integrate listings posted, messages, and transaction info.
 

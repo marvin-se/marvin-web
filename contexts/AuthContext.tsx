@@ -2,13 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-
-// Define the type for the user object
-interface User {
-  name: string;
-  email: string;
-  image?: string;
-}
+import { User } from '@/lib/types';
 
 // Define the type for the context values
 interface AuthContextType {

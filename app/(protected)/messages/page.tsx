@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export default function MessagesPage() {
+  const searchParams = useSearchParams()
+  const sellerFromParam = searchParams?.get("seller")
   const [selectedChat, setSelectedChat] = useState(0)
   const [messageInput, setMessageInput] = useState("")
 
@@ -54,6 +57,18 @@ export default function MessagesPage() {
       ],
     },
   ]
+
+  // Auto-select chat if coming from listing detail page
+  useEffect(() => {
+    if (sellerFromParam) {
+      const existingChatIndex = chats.findIndex(
+        (chat) => chat.name.toLowerCase() === sellerFromParam.toLowerCase()
+      )
+      if (existingChatIndex !== -1) {
+        setSelectedChat(existingChatIndex)
+      }
+    }
+  }, [sellerFromParam])
 
   const handleSendMessage = () => {
     if (messageInput.trim()) {

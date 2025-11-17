@@ -1,75 +1,57 @@
 "use client"
 
 import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-
+import { Listing } from "@/lib/types"
 
 export default function ListingDetailPage() {
   const params = useParams()
   const id = params.id
   const [isFavorite, setIsFavorite] = useState(false)
-  const [imageIndex, setImageIndex] = useState(0)
 
-  // Mock listing data
-  const listing = {
+  // Mock listing data - in production, this would come from an API call
+  // TODO: Replace with API call: const listing = await fetchListing(id)
+  const listing: Listing = {
     id: 1,
     title: "Calculus Textbook - Latest Edition",
+    description: "Excellent condition calculus textbook. Used for only one semester. All pages intact, no highlighting or notes. Perfect for the upcoming course.",
     price: 45,
-    campus: "Main",
+    image_url: "https://m.media-amazon.com/images/I/41Ln0mEFcdL._SX342_SY445_FMwebp_.jpg", 
     category: "Books",
-    condition: "Like New",
-    description:
-      "Excellent condition calculus textbook. Used for only one semester. All pages intact, no highlighting or notes. Perfect for the upcoming course.",
-    images: ["https://images.unsplash.com/photo-1543002588-b9b6b622e8af?q=80&w=2835&auto=format&fit=crop", "https://images.unsplash.com/photo-1550399105-c4db5fb85c18?q=80&w=2787&auto=format&fit=crop", "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=2874&auto=format&fit=crop"],
-    postedDate: "2 days ago",
-    seller: {
-      name: "Sarah Johnson",
-      university: "State University",
-      rating: 4.8,
-      reviews: 24,
-      avatar: "https://github.com/shadcn.png",
-    },
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: "Sarah Johnson",
+    updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_by: "Sarah Johnson",
     details: [
       { label: "Category", value: "Books" },
-      { label: "Condition", value: "Like New" },
-      { label: "Campus", value: "Main Campus" },
-      { label: "Posted", value: "2 days ago" },
     ],
   }
+
+  const searchParams = useSearchParams()
+  const from = searchParams?.get("from")
+  const backHref = from === "favorites" ? "/favorites" : "/browse"
+  const backLabel = from === "favorites" ? "← Back to Favorites" : "← Back to Browse"
 
   return (
     <main className="min-h-screen bg-background">
       
 
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <Link href="/browse" className="text-primary mb-6 block hover:underline">
-          ← Back to Browse
+        <Link href={backHref} className="text-primary mb-6 block hover:underline">
+          {backLabel}
         </Link>
 
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-          {/* Left: Image Gallery */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Left: Image */}
+          <div className="lg:col-span-2">
             <div className="bg-muted rounded-2xl overflow-hidden">
               <img
-                src={listing.images[imageIndex] || "/placeholder.svg"}
+                src={listing.image_url || "/placeholder.svg"}
                 alt={listing.title}
                 className="w-full h-96 object-cover"
               />
-            </div>
-            <div className="grid grid-cols-4 gap-3">
-              {listing.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setImageIndex(idx)}
-                  className={`h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                    imageIndex === idx ? "border-primary" : "border-border"
-                  }`}
-                >
-                  <img src={img || "/placeholder.svg"} alt={`view ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
             </div>
           </div>
 
@@ -79,9 +61,11 @@ export default function ListingDetailPage() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <span className="inline-block bg-accent text-accent-foreground text-xs font-semibold px-3 py-1 rounded-full mb-3">
-                    {listing.category}
-                  </span>
+                  {listing.category && (
+                    <span className="inline-block bg-accent text-accent-foreground text-xs font-semibold px-3 py-1 rounded-full mb-3">
+                      {listing.category}
+                    </span>
+                  )}
                   <h1 className="text-2xl font-bold mb-2">{listing.title}</h1>
                 </div>
                 <button
@@ -93,46 +77,53 @@ export default function ListingDetailPage() {
                 </button>
               </div>
               <p className="text-4xl font-bold text-primary">${listing.price}</p>
-              <p className="text-muted-foreground flex items-center gap-2 mb-3">📍 {listing.campus} Campus</p>
-              <p className="text-muted-foreground flex items-center gap-2">📅 Posted {listing.postedDate}</p>
+              <p className="text-muted-foreground flex items-center gap-2">
+                📅 Posted {new Date(listing.created_at).toLocaleDateString()}
+              </p>
             </div>
 
             {/* Seller Info */}
             <div className="bg-card rounded-xl p-4 border border-border">
-              <div className="flex items-center gap-3 mb-4">
-                <img
-                  src={listing.seller.avatar || "/placeholder.svg"}
-                  alt={listing.seller.name}
-                  className="w-12 h-12 rounded-full bg-muted"
-                />
-                <div>
-                  <p className="font-semibold">{listing.seller.name}</p>
-                  <p className="text-sm text-muted-foreground">{listing.seller.university}</p>
-                  <p className="text-xs text-muted-foreground">
-                    ⭐ {listing.seller.rating} ({listing.seller.reviews} reviews)
-                  </p>
+              <Link 
+                href={`/profile/${encodeURIComponent(listing.created_by)}`}
+                className="block"
+              >
+                <div className="flex items-center gap-3 mb-4 cursor-pointer hover:opacity-80 transition-opacity">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    <span className="text-lg">👤</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Seller</p>
+                    <p className="text-sm text-muted-foreground">{listing.created_by}</p>
+                  </div>
                 </div>
-              </div>
-              <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg mb-2">
-                💬 Message Seller
-              </Button>
+              </Link>
+              <Link
+                href={`/messages?seller=${encodeURIComponent(listing.created_by)}&item=${encodeURIComponent(listing.title)}`}
+              >
+                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg mb-2">
+                  💬 Message Seller
+                </Button>
+              </Link>
               <Button variant="outline" className="w-full rounded-lg border-border hover:bg-card bg-transparent">
                 📤 Share Listing
               </Button>
             </div>
 
             {/* Item Details */}
-            <div className="bg-card rounded-xl p-4 border border-border">
-              <h3 className="font-semibold mb-4">Item Details</h3>
-              <div className="space-y-3">
-                {listing.details.map((detail, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{detail.label}</span>
-                    <span className="font-medium">{detail.value}</span>
-                  </div>
-                ))}
+            {listing.details && listing.details.length > 0 && (
+              <div className="bg-card rounded-xl p-4 border border-border">
+                <h3 className="font-semibold mb-4">Item Details</h3>
+                <div className="space-y-3">
+                  {listing.details.map((detail, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{detail.label}</span>
+                      <span className="font-medium">{detail.value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

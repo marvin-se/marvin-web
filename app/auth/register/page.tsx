@@ -22,7 +22,16 @@ export default function RegisterPage() {
       return
     }
     // Simulate auto-login after registration until backend is ready
-    login({ name: `${firstName} ${lastName}`, email: email })
+    // Match database schema: full_name, email, created_at, is_active
+    login({
+      id: 1,
+      full_name: `${firstName} ${lastName}`,
+      email: email,
+      university: null,
+      phone_number: null,
+      created_at: new Date().toISOString(),
+      is_active: true,
+    })
   }
 
   return (

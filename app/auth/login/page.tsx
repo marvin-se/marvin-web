@@ -16,7 +16,7 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     // Call login function with mock user data
-    login({ name: "Test User", email: email })
+    login({ id: 1, full_name: "Test User", email: email, created_at: new Date().toISOString(), is_active: true })
   }
 
   return (
