@@ -30,7 +30,7 @@ export default function Navigation() {
 
         <div className="flex flex-1 items-center justify-end space-x-4">
           <Link href="/create-listing">
-            <Button>
+            <Button className= "bg-[#182C53] text-white hover:bg-[#1e3a6a] focus:ring-4 focus:ring-[#182C53]/50" >
               <PlusCircle className="mr-2 h-4 w-4" />
               Create Listing
             </Button>

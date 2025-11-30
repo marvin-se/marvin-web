@@ -36,9 +36,12 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
 
   return (
     <Link href={href}>
-      <div className="group bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
+      <div
+        className="group bg-slate-800 overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer border"
+        style={{ borderColor: "#182C53" }}
+      >
         {/* Image Container */}
-        <div className="relative h-48 bg-muted overflow-hidden">
+        <div className="relative h-64 bg-slate-700 overflow-hidden">
           <img
             src={listing.image_url || "/placeholder.svg"}
             alt={listing.title}
@@ -103,12 +106,13 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
         </AlertDialog>
 
         {/* Content */}
-        <div className="p-4">
+          <div className="p-4 bg-white">
           {listing.category && (
-            <p className="text-xs text-muted-foreground mb-1">{listing.category}</p>
+            <p className="text-xs text-blue-600 mb-2 font-semibold">{listing.category}</p>
           )}
-          <h3 className="font-semibold text-foreground mb-2 line-clamp-2">{listing.title}</h3>
-          <p className="text-lg font-bold text-primary">${listing.price}</p>
+          <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2 text-sm">{listing.title}</h3>
+          <p className="text-lg font-bold mb-2" style={{ color: "#182C53" }}>${listing.price}</p>
+            <p className="text-xs text-slate-500">Seller by {listing.created_by.split("@")[0]}</p>
         </div>
       </div>
     </Link>

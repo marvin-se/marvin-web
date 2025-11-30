@@ -16,15 +16,19 @@ import {
 } from "@/components/ui/pagination"
 import { Listing, User } from "@/lib/types"
 
+const primaryColor = "#72C69B"
+
+const chamferStyle = {
+  clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px)"
+}
+
 export default function BrowsePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedUniversity, setSelectedUniversity] = useState("All")
   const [priceRange, setPriceRange] = useState([0, 1000])
 
-  // Mock user data - maps created_by (email/user ID) to user objects
-  // TODO: Replace with API call: const users = await fetchUsers()
-  // In production, this would be fetched separately or included in the listing response
+  // Mock user data
   const usersMap: Record<string, User> = {
     "user1@example.com": {
       id: 1,
@@ -100,8 +104,7 @@ export default function BrowsePage() {
     },
   }
 
-  // Mock data - in production, this would come from an API call
-  // TODO: Replace with API call: const listings = await fetchListings()
+  // Mock listings data
   const listings: Listing[] = [
     {
       id: 1,
@@ -443,7 +446,6 @@ export default function BrowsePage() {
 
   const categories = ["All", "Books", "Electronics", "Furniture", "Clothing", "Hobbies", "Other"]
 
-  // Extract unique universities from users
   const universities = useMemo(() => {
     const uniqueUniversities = new Set<string>()
     Object.values(usersMap).forEach((user) => {
@@ -454,7 +456,6 @@ export default function BrowsePage() {
     return Array.from(uniqueUniversities).sort()
   }, [])
 
-  // Helper function to get user's university from listing's created_by
   const getUserUniversity = (createdBy: string): string | null => {
     const user = usersMap[createdBy]
     return user?.university || null
@@ -464,21 +465,14 @@ export default function BrowsePage() {
     const matchesSearch = listing.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === "All" || listing.category === selectedCategory
     const matchesPrice = listing.price >= priceRange[0] && listing.price <= priceRange[1]
-    
-    // Filter by university: get the user's university from created_by
     const userUniversity = getUserUniversity(listing.created_by)
-    const matchesUniversity = 
-      selectedUniversity === "All" || 
-      userUniversity === selectedUniversity
-
+    const matchesUniversity = selectedUniversity === "All" || userUniversity === selectedUniversity
     return matchesSearch && matchesCategory && matchesPrice && matchesUniversity
   })
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 9 // number of listings per page
+  const pageSize = 12
 
-  // Reset to first page when filters/search change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedCategory, selectedUniversity, priceRange])
@@ -491,136 +485,150 @@ export default function BrowsePage() {
   }, [filteredListings, currentPage])
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="grid gap-12 grid-cols-1 lg:grid-cols-4">
-        {/* Filtering Sidebar */}
-        <aside className="lg:col-span-1">
-          <div className="sticky top-24 space-y-8 max-h-[calc(100vh-6rem)] overflow-auto pr-2">
-            {/* Search */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Search</h3>
-              <Input
-                type="text"
-                placeholder="Search listings..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+    <div className="relative">
+      <img
+        src="/bg-browse.svg"
+        alt="background"
+        className="pointer-events-none fixed inset-0 -z-50 w-full h-full object-cover"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 70%)',
+          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 70%)',
+        }}
+      />
+      <div className="mx-auto max-w-7xl px-4 pb-8">
+        {/* Frame Container with Chamfered Border */}
+        <div className="drop-shadow-lg filter">
+          <div className="p-0.5" style={{ backgroundColor: primaryColor, ...chamferStyle }}>
+            <div style={chamferStyle} className="bg-white">
+              {/* Filter Bar at Top */}
+              <div className="border-b-2 border-slate-200 bg-slate-50 p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Search */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Search</h3>
+                    <Input
+                      type="text"
+                      placeholder="Search Textbooks, etc."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-white border-slate-300 text-slate-800 placeholder-slate-400"
+                    />
+                  </div>
 
-            {/* Category */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Category</h3>
-              <div className="space-y-2">
-                {categories.map((category) => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => setSelectedCategory(category)}
-                  >
-                    {category}
-                  </Button>
-                ))}
-              </div>
-            </div>
+                  {/* Category */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Category</h3>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-none"
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* Price Range */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Price Range</h3>
-              <div className="space-y-4">
-                <Slider
-                  min={0}
-                  max={1000}
-                  step={10}
-                  value={priceRange}
-                  onValueChange={(value) => setPriceRange(value)}
-                />
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>${priceRange[0]}</span>
-                  <span>${priceRange[1]}</span>
+                  {/* Price Range */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Price Range</h3>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={priceRange[0]}
+                        onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
+                        className="bg-white border-slate-300 text-slate-800 w-1/2 rounded-none"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={priceRange[1]}
+                        onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 1000])}
+                        className="bg-white border-slate-300 text-slate-800 w-1/2 rounded-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* University Filter */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">University</h3>
+                    <select
+                      value={selectedUniversity}
+                      onChange={(e) => setSelectedUniversity(e.target.value)}
+                      className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-none"
+                    >
+                      <option value="All">All Universities</option>
+                      {universities.map((university) => (
+                        <option key={university} value={university}>
+                          {university}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* University Filter */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">University</h3>
-              <div className="space-y-2">
-                <Button
-                  variant={selectedUniversity === "All" ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setSelectedUniversity("All")}
-                >
-                  All Universities
-                </Button>
-                {universities.map((university) => (
-                  <Button
-                    key={university}
-                    variant={selectedUniversity === university ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    onClick={() => setSelectedUniversity(university)}
-                  >
-                    {university}
-                  </Button>
-                ))}
+              {/* Listings Grid */}
+              <div className="p-6 bg-white">
+                {filteredListings.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {paginatedListings.map((listing) => (
+                        <ListingCard key={listing.id} listing={listing} />
+                      ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="mt-12 flex justify-center">
+                        <Pagination>
+                          <PaginationContent className="gap-1">
+                            <PaginationItem>
+                              <PaginationPrevious
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                className="bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
+                              />
+                            </PaginationItem>
+
+                            {Array.from({ length: totalPages }).map((_, i) => {
+                              const page = i + 1
+                              return (
+                                <PaginationItem key={page}>
+                                  <PaginationLink
+                                    isActive={page === currentPage}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={page === currentPage ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-white text-slate-800 border-slate-300 hover:bg-slate-50"}
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              )
+                            })}
+
+                            <PaginationItem>
+                              <PaginationNext
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                className="bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-16">
+                    <h2 className="text-2xl font-semibold mb-2 text-slate-800">No Results Found</h2>
+                    <p className="text-slate-600">Try adjusting your filter criteria.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </aside>
-
-        {/* Listings */}
-        <main className="lg:col-span-3">
-          <h1 className="text-3xl font-bold mb-8">Listings</h1>
-          {filteredListings.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-                {paginatedListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
-                ))}
-              </div>
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="mt-8">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        />
-                      </PaginationItem>
-
-                      {Array.from({ length: totalPages }).map((_, i) => {
-                        const page = i + 1
-                        return (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={page === currentPage}
-                              onClick={() => setCurrentPage(page)}
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        )
-                      })}
-
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-16">
-              <h2 className="text-2xl font-semibold mb-2">No Results Found</h2>
-              <p className="text-muted-foreground">Try adjusting your filter criteria.</p>
-            </div>
-          )}
-        </main>
+        </div>
       </div>
     </div>
   )
