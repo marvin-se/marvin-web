@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CircleUser, Heart, MessageSquare, LogOut, ArrowLeftRight } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useState } from "react"
 
 export default function Navigation() {
   const { user, logout } = useAuth();
@@ -25,11 +26,11 @@ export default function Navigation() {
   const logoHref = pathname.startsWith('/auth') ? '/' : '/browse';
 
   return (
-    <header className="absolute top-0 z-50 w-full">
-      <div className="flex h-16 items-center">
-        <div className="mr-4 flex items-center">
-          <Link href={logoHref}>
-            <div className="relative h-14 w-30"> 
+    <header className="fixed top-0 z-50 w-full border-b border-gray-200" style={{ backgroundColor: '#F5F6F8' }}>
+      <div className="flex h-16 items-center pl-6">
+        <div className="mr-4 flex items-center gap-3">
+          <Link href={logoHref} className="flex items-center gap-1">
+            <div className="relative h-10 w-auto aspect-square"> 
               <Image
                 src="/logo.png"
                 alt="CampusTrade Logo"
@@ -37,10 +38,20 @@ export default function Navigation() {
                 className="object-contain"
               />
             </div>
+            <span className="text-2xl font-bold" style={{ color: '#182C53' }}>
+              CampusTrade
+            </span>
           </Link>
         </div>
 
         <div className="flex flex-1 items-center justify-end space-x-4 pr-4">
+          {user && (
+            <Link href="/create-listing">
+              <Button className="text-white rounded-lg" style={{ backgroundColor: '#72C69B' }}>
+                Create Listing
+              </Button>
+            </Link>
+          )}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -99,7 +110,7 @@ export default function Navigation() {
                   <Button variant="outline">Login</Button>
                 </Link>
                 <Link href="/auth/register">
-                  <Button>Register</Button>
+                  <Button className="text-white rounded-lg" style={{ backgroundColor: '#72C69B' }}>Register</Button>
                 </Link>
               </div>
             )

@@ -5,6 +5,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import ListingCard from "@/components/listing-card"
 
+const primaryColor = "#72C69B"
+const secondaryColor = "#182C53"
+
 
 export default function FavoritesPage() {
   // Mock favorites data (stateful so we can remove items)
@@ -62,7 +65,7 @@ export default function FavoritesPage() {
 
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">My Favorites</h1>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: secondaryColor }}>My Favorites</h1>
           <p className="text-muted-foreground">Items you've saved for later</p>
         </div>
 
@@ -74,7 +77,7 @@ export default function FavoritesPage() {
             <h2 className="text-2xl font-bold mb-2">No Favorites Yet</h2>
             <p className="text-muted-foreground mb-6">Start exploring and save items you like</p>
             <Link href="/browse">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg">
+              <Button className="text-white rounded-lg" style={{ backgroundColor: primaryColor }}>
                 Browse Marketplace
               </Button>
             </Link>

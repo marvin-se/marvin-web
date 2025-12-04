@@ -6,6 +6,9 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+const primaryColor = "#72C69B"
+const secondaryColor = "#182C53"
+
 export default function MessagesPage() {
   const searchParams = useSearchParams()
   const sellerFromParam = searchParams?.get("seller")
@@ -83,35 +86,36 @@ export default function MessagesPage() {
 
       <div className="mx-auto max-w-6xl px-4 h-[calc(100vh-80px)] flex gap-4 py-4">
         {/* Chat List */}
-        <div className="w-full md:w-80 bg-card rounded-xl border border-border overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border">
-            <h2 className="text-xl font-bold">Messages</h2>
+        <div className="w-full md:w-80 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold" style={{ color: secondaryColor }}>Messages</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             {chats.map((chat, idx) => (
               <button
                 key={chat.id}
                 onClick={() => setSelectedChat(idx)}
-                className={`w-full p-4 border-b border-border text-left transition-colors ${
-                  selectedChat === idx ? "bg-primary/10" : "hover:bg-muted"
+                className={`w-full p-4 border-b border-gray-200 text-left transition-colors ${
+                  selectedChat === idx ? "bg-gray-50" : "hover:bg-gray-50"
                 }`}
+                style={{ borderLeftColor: selectedChat === idx ? primaryColor : 'transparent', borderLeftWidth: selectedChat === idx ? '4px' : '0px' }}
               >
                 <div className="flex gap-3">
                   <img
                     src={chat.avatar || "/placeholder.svg"}
                     alt={chat.name}
-                    className="w-10 h-10 rounded-full bg-muted"
+                    className="w-10 h-10 rounded-full bg-gray-300"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold truncate">{chat.name}</p>
-                      <p className="text-xs text-muted-foreground">{chat.timestamp}</p>
+                      <p className="font-semibold truncate" style={{ color: secondaryColor }}>{chat.name}</p>
+                      <p className="text-xs text-gray-500">{chat.timestamp}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{chat.item}</p>
-                    <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+                    <p className="text-xs text-gray-600 mb-1">{chat.item}</p>
+                    <p className="text-sm text-gray-600 truncate">{chat.lastMessage}</p>
                   </div>
                   {chat.unread > 0 && (
-                    <div className="w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <div className="w-5 h-5 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: primaryColor }}>
                       {chat.unread}
                     </div>
                   )}
@@ -122,18 +126,18 @@ export default function MessagesPage() {
         </div>
 
         {/* Chat Window */}
-        <div className="hidden md:flex flex-1 flex-col bg-card rounded-xl border border-border">
+        <div className="hidden md:flex flex-1 flex-col bg-white rounded-xl border border-gray-200">
           {/* Chat Header */}
-          <div className="p-4 border-b border-border flex items-center justify-between">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
                 src={chats[selectedChat].avatar || "/placeholder.svg"}
                 alt={chats[selectedChat].name}
-                className="w-10 h-10 rounded-full bg-muted"
+                className="w-10 h-10 rounded-full bg-gray-300"
               />
               <div>
-                <p className="font-semibold">{chats[selectedChat].name}</p>
-                <p className="text-xs text-muted-foreground">{chats[selectedChat].item}</p>
+                <p className="font-semibold" style={{ color: secondaryColor }}>{chats[selectedChat].name}</p>
+                <p className="text-xs text-gray-600">{chats[selectedChat].item}</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" className="rounded-lg text-xl font-bold">
@@ -147,8 +151,9 @@ export default function MessagesPage() {
               <div key={msg.id} className={`flex ${msg.sender === "You" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-xs px-4 py-2 rounded-lg ${
-                    msg.sender === "You" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    msg.sender === "You" ? "text-white" : "bg-gray-100 text-gray-900"
                   }`}
+                  style={msg.sender === "You" ? { backgroundColor: primaryColor } : {}}
                 >
                   <p className="text-sm">{msg.text}</p>
                   <p className="text-xs opacity-75 mt-1">{msg.timestamp}</p>
@@ -158,7 +163,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-border flex gap-2">
+          <div className="p-4 border-t border-gray-200 flex gap-2">
             <Input
               placeholder="Type a message..."
               value={messageInput}
@@ -166,11 +171,12 @@ export default function MessagesPage() {
               onKeyPress={(e) => {
                 if (e.key === "Enter") handleSendMessage()
               }}
-              className="rounded-lg"
+              className="rounded-lg border-gray-300"
             />
             <Button
               onClick={handleSendMessage}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg"
+              className="text-white rounded-lg"
+              style={{ backgroundColor: primaryColor }}
               size="icon"
             >
               ➤
@@ -179,16 +185,16 @@ export default function MessagesPage() {
         </div>
 
         {/* Mobile Message View */}
-        <div className="md:hidden flex-1 bg-card rounded-xl border border-border overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border flex items-center gap-3">
+        <div className="md:hidden flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-gray-200 flex items-center gap-3">
             <img
               src={chats[selectedChat].avatar || "/placeholder.svg"}
               alt={chats[selectedChat].name}
-              className="w-8 h-8 rounded-full bg-muted"
+              className="w-8 h-8 rounded-full bg-gray-300"
             />
             <div>
-              <p className="font-semibold text-sm">{chats[selectedChat].name}</p>
-              <p className="text-xs text-muted-foreground">{chats[selectedChat].item}</p>
+              <p className="font-semibold text-sm" style={{ color: secondaryColor }}>{chats[selectedChat].name}</p>
+              <p className="text-xs text-gray-600">{chats[selectedChat].item}</p>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -196,8 +202,9 @@ export default function MessagesPage() {
               <div key={msg.id} className={`flex ${msg.sender === "You" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-xs px-3 py-2 text-sm rounded-lg ${
-                    msg.sender === "You" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    msg.sender === "You" ? "text-white" : "bg-gray-100 text-gray-900"
                   }`}
+                  style={msg.sender === "You" ? { backgroundColor: primaryColor } : {}}
                 >
                   <p>{msg.text}</p>
                   <p className="text-xs opacity-75 mt-1">{msg.timestamp}</p>
@@ -205,7 +212,7 @@ export default function MessagesPage() {
               </div>
             ))}
           </div>
-          <div className="p-3 border-t border-border flex gap-2">
+          <div className="p-3 border-t border-gray-200 flex gap-2">
             <Input
               placeholder="Message..."
               value={messageInput}
@@ -213,11 +220,12 @@ export default function MessagesPage() {
               onKeyPress={(e) => {
                 if (e.key === "Enter") handleSendMessage()
               }}
-              className="rounded-lg text-sm"
+              className="rounded-lg text-sm border-gray-300"
             />
             <Button
               onClick={handleSendMessage}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg"
+              className="text-white rounded-lg"
+              style={{ backgroundColor: primaryColor }}
               size="sm"
             >
               ➤

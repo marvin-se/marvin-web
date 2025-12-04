@@ -1,11 +1,13 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ListingCard from "@/components/listing-card"
 import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
+import { Search } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -17,16 +19,30 @@ import {
 import { Listing, User } from "@/lib/types"
 
 const primaryColor = "#72C69B"
+const secondaryColor = "#182C53"
 
 const chamferStyle = {
   clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px)"
 }
 
 export default function BrowsePage() {
+  const searchParams = useSearchParams()
+
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedUniversity, setSelectedUniversity] = useState("All")
+  const [selectedCondition, setSelectedCondition] = useState("All")
   const [priceRange, setPriceRange] = useState([0, 1000])
+
+  useEffect(() => {
+    const query = searchParams.get("search")
+    // If there is a search param, update your existing state
+    if (query !== null) {
+      setSearchQuery(query)
+    } else {
+      setSearchQuery("")
+    }
+  }, [searchParams])
 
   // Mock user data
   const usersMap: Record<string, User> = {
@@ -108,15 +124,15 @@ export default function BrowsePage() {
   const listings: Listing[] = [
     {
       id: 1,
-      title: "Barely used textbook",
-      description: "Excellent condition textbook, used for only one semester.",
-      price: 50,
-      image_url: "https://images.unsplash.com/photo-1543002588-b9b6b622e8af?q=80&w=2835&auto=format&fit=crop",
+      title: "Physics Lab Guide",
+      description: "Comprehensive physics lab guide with all experiments.",
+      price: 30,
+      image_url: "https://images.unsplash.com/photo-1550399105-c4db5fb85c18?q=80&w=2787&auto=format&fit=crop",
       category: "Books",
       created_at: new Date().toISOString(),
-      created_by: "user1@example.com",
+      created_by: "user5@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user1@example.com",
+      updated_by: "user5@example.com",
     },
     {
       id: 2,
@@ -132,42 +148,6 @@ export default function BrowsePage() {
     },
     {
       id: 3,
-      title: "IKEA Desk",
-      description: "Sturdy IKEA desk in great condition, perfect for studying.",
-      price: 150,
-      image_url: "https://images.unsplash.com/photo-1611210118484-6046f003a13a?q=80&w=2787&auto=format&fit=crop",
-      category: "Furniture",
-      created_at: new Date().toISOString(),
-      created_by: "user3@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user3@example.com",
-    },
-    {
-      id: 4,
-      title: "Winter Coat (Size M)",
-      description: "Warm winter coat, barely worn, excellent condition.",
-      price: 80,
-      image_url: "https://images.unsplash.com/photo-1593760991912-48203335c285?q=80&w=2787&auto=format&fit=crop",
-      category: "Clothing",
-      created_at: new Date().toISOString(),
-      created_by: "user4@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user4@example.com",
-    },
-    {
-      id: 5,
-      title: "Physics Lab Guide",
-      description: "Comprehensive physics lab guide with all experiments.",
-      price: 30,
-      image_url: "https://images.unsplash.com/photo-1550399105-c4db5fb85c18?q=80&w=2787&auto=format&fit=crop",
-      category: "Books",
-      created_at: new Date().toISOString(),
-      created_by: "user5@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user5@example.com",
-    },
-    {
-      id: 6,
       title: "27-inch Monitor",
       description: "High-quality 27-inch monitor, perfect for coding and design work.",
       price: 250,
@@ -179,19 +159,19 @@ export default function BrowsePage() {
       updated_by: "user6@example.com",
     },
     {
-      id: 7,
-      title: "Bookshelf",
-      description: "Spacious bookshelf, perfect for organizing textbooks and supplies.",
-      price: 100,
-      image_url: "https://images.unsplash.com/photo-1558304923-5383a5544636?q=80&w=2787&auto=format&fit=crop",
-      category: "Furniture",
+      id: 4,
+      title: "Yoga Mat",
+      description: "Non-slip yoga mat in great condition.",
+      price: 15,
+      image_url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=2787&auto=format&fit=crop",
+      category: "Hobbies",
       created_at: new Date().toISOString(),
-      created_by: "user7@example.com",
+      created_by: "user8@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user7@example.com",
+      updated_by: "user8@example.com",
     },
     {
-      id: 8,
+      id: 5,
       title: "Running Shoes (Size 9)",
       description: "Comfortable running shoes, great for campus walks and workouts.",
       price: 60,
@@ -201,6 +181,42 @@ export default function BrowsePage() {
       created_by: "user8@example.com",
       updated_at: new Date().toISOString(),
       updated_by: "user8@example.com",
+    },
+    {
+      id: 6,
+      title: "Organic Gardening Kit",
+      description: "Starter kit with seeds and small tools.",
+      price: 22,
+      image_url: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=2787&auto=format&fit=crop",
+      category: "Hobbies",
+      created_at: new Date().toISOString(),
+      created_by: "user1@example.com",
+      updated_at: new Date().toISOString(),
+      updated_by: "user1@example.com",
+    },
+    {
+      id: 7,
+      title: "Graphic Tee (L)",
+      description: "Comfortable cotton tee with minimal fade.",
+      price: 12,
+      image_url: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=2787&auto=format&fit=crop",
+      category: "Clothing",
+      created_at: new Date().toISOString(),
+      created_by: "user4@example.com",
+      updated_at: new Date().toISOString(),
+      updated_by: "user4@example.com",
+    },
+    {
+      id: 8,
+      title: "Small Coffee Table",
+      description: "Minimalist coffee table, small scratch on top.",
+      price: 40,
+      image_url: "https://images.unsplash.com/photo-1550581190-9c1c48d21d6c?q=80&w=2787&auto=format&fit=crop",
+      category: "Furniture",
+      created_at: new Date().toISOString(),
+      created_by: "user7@example.com",
+      updated_at: new Date().toISOString(),
+      updated_by: "user7@example.com",
     },
     {
       id: 9,
@@ -288,15 +304,15 @@ export default function BrowsePage() {
     },
     {
       id: 16,
-      title: "Yoga Mat",
-      description: "Non-slip yoga mat in great condition.",
-      price: 15,
-      image_url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=2787&auto=format&fit=crop",
-      category: "Hobbies",
+      title: "Winter Coat (Size M)",
+      description: "Warm winter coat, barely worn, excellent condition.",
+      price: 80,
+      image_url: "https://images.unsplash.com/photo-1593760991912-48203335c285?q=80&w=2787&auto=format&fit=crop",
+      category: "Clothing",
       created_at: new Date().toISOString(),
-      created_by: "user8@example.com",
+      created_by: "user4@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user8@example.com",
+      updated_by: "user4@example.com",
     },
     {
       id: 17,
@@ -336,15 +352,15 @@ export default function BrowsePage() {
     },
     {
       id: 20,
-      title: "Graphic Tee (L)",
-      description: "Comfortable cotton tee with minimal fade.",
-      price: 12,
-      image_url: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=2787&auto=format&fit=crop",
-      category: "Clothing",
+      title: "Bookshelf",
+      description: "Spacious bookshelf, perfect for organizing textbooks and supplies.",
+      price: 100,
+      image_url: "https://images.unsplash.com/photo-1558304923-5383a5544636?q=80&w=2787&auto=format&fit=crop",
+      category: "Furniture",
       created_at: new Date().toISOString(),
-      created_by: "user4@example.com",
+      created_by: "user7@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user4@example.com",
+      updated_by: "user7@example.com",
     },
     {
       id: 21,
@@ -372,15 +388,15 @@ export default function BrowsePage() {
     },
     {
       id: 23,
-      title: "Small Coffee Table",
-      description: "Minimalist coffee table, small scratch on top.",
-      price: 40,
-      image_url: "https://images.unsplash.com/photo-1550581190-9c1c48d21d6c?q=80&w=2787&auto=format&fit=crop",
-      category: "Furniture",
+      title: "Barely used textbook",
+      description: "Excellent condition textbook, used for only one semester.",
+      price: 50,
+      image_url: "https://images.unsplash.com/photo-1543002588-b9b6b622e8af?q=80&w=2835&auto=format&fit=crop",
+      category: "Books",
       created_at: new Date().toISOString(),
-      created_by: "user7@example.com",
+      created_by: "user1@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user7@example.com",
+      updated_by: "user1@example.com",
     },
     {
       id: 24,
@@ -396,15 +412,15 @@ export default function BrowsePage() {
     },
     {
       id: 25,
-      title: "Organic Gardening Kit",
-      description: "Starter kit with seeds and small tools.",
-      price: 22,
-      image_url: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=2787&auto=format&fit=crop",
-      category: "Hobbies",
+      title: "IKEA Desk",
+      description: "Sturdy IKEA desk in great condition, perfect for studying.",
+      price: 150,
+      image_url: "https://images.unsplash.com/photo-1611210118484-6046f003a13a?q=80&w=2787&auto=format&fit=crop",
+      category: "Furniture",
       created_at: new Date().toISOString(),
-      created_by: "user1@example.com",
+      created_by: "user3@example.com",
       updated_at: new Date().toISOString(),
-      updated_by: "user1@example.com",
+      updated_by: "user3@example.com",
     },
     {
       id: 26,
@@ -445,6 +461,8 @@ export default function BrowsePage() {
   ]
 
   const categories = ["All", "Books", "Electronics", "Furniture", "Clothing", "Hobbies", "Other"]
+  const conditions = ["All", "New", "Like New", "Good", "Fair"]
+  const priceRanges = ["All", "Under $25", "$25-$50", "$50-$100", "$100+"]
 
   const universities = useMemo(() => {
     const uniqueUniversities = new Set<string>()
@@ -475,7 +493,7 @@ export default function BrowsePage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedUniversity, priceRange])
+  }, [searchQuery, selectedCategory, selectedUniversity, selectedCondition, priceRange])
 
   const totalPages = Math.max(1, Math.ceil(filteredListings.length / pageSize))
 
@@ -485,149 +503,156 @@ export default function BrowsePage() {
   }, [filteredListings, currentPage])
 
   return (
-    <div className="relative">
-      <img
-        src="/bg-browse.svg"
-        alt="background"
-        className="pointer-events-none fixed inset-0 -z-50 w-full h-full object-cover"
-        style={{
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 70%)',
-          maskImage: 'linear-gradient(to bottom, black 0%, black 45%, transparent 70%)',
-        }}
-      />
-      <div className="mx-auto max-w-7xl px-4 pb-8">
-        {/* Frame Container with Chamfered Border */}
-        <div className="drop-shadow-lg filter">
-          <div className="p-0.5" style={{ backgroundColor: primaryColor, ...chamferStyle }}>
-            <div style={chamferStyle} className="bg-white">
-              {/* Filter Bar at Top */}
-              <div className="border-b-2 border-slate-200 bg-slate-50 p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Search */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Search</h3>
-                    <Input
-                      type="text"
-                      placeholder="Search Textbooks, etc."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-white border-slate-300 text-slate-800 placeholder-slate-400"
-                    />
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Category</h3>
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-none"
-                    >
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Price Range */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">Price Range</h3>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        placeholder="Min"
-                        value={priceRange[0]}
-                        onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
-                        className="bg-white border-slate-300 text-slate-800 w-1/2 rounded-none"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Max"
-                        value={priceRange[1]}
-                        onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 1000])}
-                        className="bg-white border-slate-300 text-slate-800 w-1/2 rounded-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* University Filter */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3 text-slate-700 uppercase tracking-wide">University</h3>
-                    <select
-                      value={selectedUniversity}
-                      onChange={(e) => setSelectedUniversity(e.target.value)}
-                      className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-800 rounded-none"
-                    >
-                      <option value="All">All Universities</option>
-                      {universities.map((university) => (
-                        <option key={university} value={university}>
-                          {university}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Listings Grid */}
-              <div className="p-6 bg-white">
-                {filteredListings.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {paginatedListings.map((listing) => (
-                        <ListingCard key={listing.id} listing={listing} />
-                      ))}
-                    </div>
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="mt-12 flex justify-center">
-                        <Pagination>
-                          <PaginationContent className="gap-1">
-                            <PaginationItem>
-                              <PaginationPrevious
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                className="bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
-                              />
-                            </PaginationItem>
-
-                            {Array.from({ length: totalPages }).map((_, i) => {
-                              const page = i + 1
-                              return (
-                                <PaginationItem key={page}>
-                                  <PaginationLink
-                                    isActive={page === currentPage}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={page === currentPage ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-white text-slate-800 border-slate-300 hover:bg-slate-50"}
-                                  >
-                                    {page}
-                                  </PaginationLink>
-                                </PaginationItem>
-                              )
-                            })}
-
-                            <PaginationItem>
-                              <PaginationNext
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                className="bg-white text-slate-800 border-slate-300 hover:bg-slate-50"
-                              />
-                            </PaginationItem>
-                          </PaginationContent>
-                        </Pagination>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-16">
-                    <h2 className="text-2xl font-semibold mb-2 text-slate-800">No Results Found</h2>
-                    <p className="text-slate-600">Try adjusting your filter criteria.</p>
-                  </div>
-                )}
-              </div>
+    <div className="w-full min-h-screen">
+      <div className="w-full pt-18 px-6 pb-12">
+        {/* Header Section */}
+        <div 
+          className="mb-8 py-9 px-6 rounded-lg bg-cover bg-center relative"
+          style={{ backgroundColor: "#F5F6F8"  }}
+        >
+          {/* Optional: Add an overlay for better text readability */}
+          <div className="absolute inset-0 rounded-lg"></div>
+          
+          {/* Content wrapper with relative positioning */}
+          <div className="relative z-10">
+          <h1 className="text-4xl font-bold text-[#182C53] mb-2">Campus Marketplace</h1>
+          <p className="text-gray-500 text-sm mb-6">Buy and sell second-hand items from fellow students.</p>
+          
+          {/* Search Bar */}
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search for textbooks, furniture, electronics..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white pl-12 pr-4 py-3 rounded-lg border border-gray-200 focus:border-gray-300 focus:ring-0"
+              />
             </div>
           </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-wrap gap-6 items-end">
+            {/* Category Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm focus:outline-none focus:border-gray-300"
+              >
+                <option value="All">All Categories</option>
+                {categories.filter(c => c !== "All").map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Price Range Slider */}
+            <div className="flex-1 max-w-sm">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">${priceRange[0]}</span>
+                <style>{`
+                  [data-slot="slider-track"] {
+                    background-color: #e5e7eb !important;
+                  }
+                  [data-slot="slider-range"] {
+                    background-color: ${primaryColor} !important;
+                  }
+                  [data-slot="slider-thumb"] {
+                    border-color: ${primaryColor} !important;
+                  }
+                `}</style>
+                <Slider
+                  value={priceRange}
+                  onValueChange={setPriceRange}
+                  min={0}
+                  max={1000}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600">${priceRange[1]}</span>
+              </div>
+            </div>
+
+            {/* University Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">University</label>
+              <select
+                value={selectedUniversity}
+                onChange={(e) => setSelectedUniversity(e.target.value)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm focus:outline-none focus:border-gray-300"
+              >
+                <option value="All">All Universities</option>
+                {universities.map((university) => (
+                  <option key={university} value={university}>
+                    {university}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        {/* Listings Grid */}
+        <div className="bg-[#F5F6F8] rounded-xl border border-gray-200 p-8 mb-8">
+          {filteredListings.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {paginatedListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="mt-12 flex justify-center">
+                  <Pagination>
+                    <PaginationContent className="gap-1">
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                        />
+                      </PaginationItem>
+
+                      {Array.from({ length: totalPages }).map((_, i) => {
+                        const page = i + 1
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={page === currentPage}
+                              onClick={() => setCurrentPage(page)}
+                              className={page === currentPage ? "bg-gray-100 border-gray-300 text-gray-800" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      })}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-16">
+              <h2 className="text-2xl font-semibold mb-2 text-gray-800">No Results Found</h2>
+              <p className="text-gray-600">Try adjusting your filter criteria.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

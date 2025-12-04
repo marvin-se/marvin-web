@@ -33,7 +33,10 @@ export default function ProtectedLayout({
 
   // If there is a user, show the page content
   return (
-    <div>
+    <div
+      className="min-h-screen bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: "url('/bg-browse.svg')" }}
+    >
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>

@@ -36,12 +36,9 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
 
   return (
     <Link href={href}>
-      <div
-        className="group bg-slate-800 overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer border"
-        style={{ borderColor: "#182C53" }}
-      >
+      <div className="group rounded-2xl bg-white overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100">
         {/* Image Container */}
-        <div className="relative h-64 bg-slate-700 overflow-hidden">
+        <div className="relative h-64 bg-gray-100 overflow-hidden">
           <img
             src={listing.image_url || "/placeholder.svg"}
             alt={listing.title}
@@ -63,11 +60,11 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
 
               setIsFavorite(!isFavorite)
             }}
-            className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
+            className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:shadow-md transition-all hover:scale-110"
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill={isFavorite ? "#ef4444" : "none"}
               stroke={isFavorite ? "#ef4444" : "#9ca3af"}
@@ -114,13 +111,15 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
         </AlertDialog>
 
         {/* Content */}
-          <div className="p-4 bg-white">
-          {listing.category && (
-            <p className="text-xs text-blue-600 mb-2 font-semibold">{listing.category}</p>
-          )}
-          <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2 text-sm">{listing.title}</h3>
-          <p className="text-lg font-bold mb-2" style={{ color: "#182C53" }}>${listing.price}</p>
-            <p className="text-xs text-slate-500">Seller by {listing.created_by.split("@")[0]}</p>
+        <div className="p-4">
+          <h3 className="font-medium text-gray-800 mb-1 line-clamp-1 text-base">{listing.title}</h3>
+          <p className="text-xl font-semibold mb-3" style={{ color: '#182C53' }}>${listing.price}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+              {listing.created_by.charAt(0).toUpperCase()}
+            </div>
+            <p className="text-xs text-gray-500">{listing.created_by.split("@")[0]}</p>
+          </div>
         </div>
       </div>
     </Link>

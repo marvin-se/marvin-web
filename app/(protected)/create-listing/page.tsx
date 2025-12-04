@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 
+const primaryColor = "#72C69B"
+const secondaryColor = "#182C53"
+
 export default function CreateListingPage() {
   const [formData, setFormData] = useState({
     title: "",
@@ -72,10 +75,10 @@ export default function CreateListingPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-8">
-        <Link href="/browse" className="text-primary mb-4 block hover:underline">
+        <Link href="/browse" className="mb-4 block hover:underline" style={{ color: primaryColor }}>
           ← Back to Listings
         </Link>
-        <h1 className="text-3xl font-bold mb-2">Create New Listing</h1>
+        <h1 className="text-3xl font-bold mb-2" style={{ color: secondaryColor }}>Create New Listing</h1>
         <p className="text-muted-foreground">Fill out the information below to sell your item</p>
       </div>
 
@@ -177,7 +180,7 @@ export default function CreateListingPage() {
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" className="text-white" style={{ backgroundColor: primaryColor }}>
             Publish Listing
           </Button>
         </div>

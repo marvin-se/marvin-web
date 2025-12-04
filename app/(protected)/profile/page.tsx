@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import ListingCard from "@/components/listing-card"
+import { Share2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+const primaryColor = "#72C69B"
+const secondaryColor = "#182C53"
+
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
@@ -23,8 +27,8 @@ export default function ProfilePage() {
   const [listingToDelete, setListingToDelete] = useState<number | null>(null)
   const [profile, setProfile] = useState({
     id: 1,
-    full_name: "Emma Wilson",
-    email: "emma.wilson@university.edu",
+    full_name: "Alex Chen",
+    email: "alex.chen@university.edu",
     university: "State University",
     phone_number: "+1234567890",
     created_at: new Date().toISOString(),
@@ -130,67 +134,84 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-background">
       
 
-      <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-12">
         {/* Profile Header */}
-        <div className="bg-card rounded-xl border border-border p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Basic Info */}
-            <div className="flex flex-col items-center md:items-start gap-4 md:flex-1">
-              <div className="w-24 h-24 rounded-full bg-muted border-4 border-primary/20 flex items-center justify-center">
-                <span className="text-4xl">👤</span>
-              </div>
-              <div className="text-center md:text-left">
-                <h1 className="text-2xl font-bold mb-1">{profile.full_name}</h1>
-                <div className="flex flex-col md:flex-row gap-2 text-muted-foreground text-sm">
-                  {profile.university && (
-                    <div className="flex items-center justify-center md:justify-start gap-1">
-                      🏫 {profile.university}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-center md:justify-start gap-1">✉️ {profile.email}</div>
-                  {profile.phone_number && (
-                    <div className="flex items-center justify-center md:justify-start gap-1">📞 {profile.phone_number}</div>
-                  )}
-                </div>
-                {/* Stats */}
-                <div className="flex gap-4 justify-center md:justify-start mb-4">
-                  <div className="bg-muted rounded-lg p-4 text-center min-w-[80px]">
-                    <p className="text-2xl font-bold text-primary">{profile.items_listed || 0}</p>
-                    <p className="text-xs text-muted-foreground">Listed</p>
-                  </div>
-                  <div className="bg-muted rounded-lg p-4 text-center min-w-[80px]">
-                    <p className="text-2xl font-bold text-primary">{profile.items_sold || 0}</p>
-                    <p className="text-xs text-muted-foreground">Sold</p>
-                  </div>
-                  <div className="bg-muted rounded-lg p-4 text-center min-w-[80px]">
-                    <p className="text-2xl font-bold text-primary">{profile.items_purchased || 0}</p>
-                    <p className="text-xs text-muted-foreground">Purchased</p>
-                  </div>
-                </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-8 mb-16">
+          {/* Top: Avatar and Profile Info */}
+          <div className="flex gap-8 mb-8">
+            {/* Avatar */}
+            <img
+              src="/young-student.avif"
+              alt={profile.full_name}
+              className="w-32 h-32 rounded-full object-cover flex-shrink-0"
+            />
+            
+            {/* Profile Details */}
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold mb-1" style={{ color: secondaryColor }}>
+                {profile.full_name}
+              </h1>
+              <p className="text-sm text-gray-600 mb-3">{profile.university} • Graphic Design Major</p>
+              <p className="text-sm text-gray-700 mb-4">
+                Campus creative. Selling my art supplies and books to fund my next project. Always open to trades. 🌟
+              </p>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="text-white rounded-lg px-4 py-2 text-sm"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Edit Profile
+                </Button>
+                <Button
+                  className="text-white rounded-lg px-4 py-2 text-sm"
+                  style={{ backgroundColor: secondaryColor }}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </Button>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-6">
-            <Button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg"
-            >
-              ✏️ {isEditing ? "Cancel" : "Edit Profile"}
-            </Button>
-            <Link href="/create-listing" className="flex-1">
-              <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-lg">
-                Create Listing
-              </Button>
-            </Link>
+          {/* Bottom: Stats Cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-gray-100 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-xl">📋</span>
+              </div>
+              <p className="text-xs text-gray-600 mb-1">Items Listed</p>
+              <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                {profile.items_listed || 0}
+              </p>
+            </div>
+            <div className="bg-gray-100 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-xl">✅</span>
+              </div>
+              <p className="text-xs text-gray-600 mb-1">Items Sold</p>
+              <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                {profile.items_sold || 0}
+              </p>
+            </div>
+            <div className="bg-gray-100 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-xl">⭐</span>
+              </div>
+              <p className="text-xs text-gray-600 mb-1">Campus Rating</p>
+              <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                4.9/5
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Edit Profile Form */}
         {isEditing && (
-          <div className="bg-card rounded-xl border border-border p-6 mb-8">
-            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+            <h2 className="text-xl font-bold mb-4" style={{ color: secondaryColor }}>Edit Profile</h2>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-semibold block mb-2">Full Name</label>
@@ -205,9 +226,9 @@ export default function ProfilePage() {
                 <Input
                   value={profile.email}
                   disabled
-                  className="rounded-lg bg-muted/50 cursor-not-allowed"
+                  className="rounded-lg bg-gray-100 cursor-not-allowed"
                 />
-                 <p className="text-xs text-muted-foreground mt-1">
+                 <p className="text-xs text-gray-600 mt-1">
                   Email address cannot be changed.
                 </p>
               </div>
@@ -225,15 +246,16 @@ export default function ProfilePage() {
                 <Input
                   value={profile.university || ""}
                   disabled
-                  className="rounded-lg bg-muted/50 cursor-not-allowed"
+                  className="rounded-lg bg-gray-100 cursor-not-allowed"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-gray-600 mt-1">
                   University cannot be changed after registration.
                 </p>
               </div>
               <Button
                 onClick={handleSaveProfile}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg"
+                className="w-full text-white rounded-lg"
+                style={{ backgroundColor: primaryColor }}
               >
                 Save Changes
               </Button>
@@ -243,9 +265,9 @@ export default function ProfilePage() {
 
         {/* My Listings */}
         <div>
-          <h2 className="text-2xl font-bold mb-6">My Listings</h2>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: secondaryColor }}>My Listings</h2>
           {userListings.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {userListings.map((item) => (
                 <div key={item.id} className="relative group">
                   <ListingCard listing={item} />
@@ -254,13 +276,13 @@ export default function ProfilePage() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-8 px-3 text-xs"
+                        className="text-white rounded-lg h-8 px-3 text-xs"
+                        style={{ backgroundColor: primaryColor }}
                       >
                         Edit
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
                         className="bg-red-500 text-white hover:bg-red-600 rounded-lg h-8 px-3 text-xs border-0"
                         onClick={(e) => openDeleteDialog(item.id, e)}
                       >
@@ -272,12 +294,12 @@ export default function ProfilePage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-card rounded-xl border border-border">
-              <div className="text-5xl mx-auto mb-4">👤</div>
-              <h3 className="text-lg font-semibold mb-2">No Listings Yet</h3>
-              <p className="text-muted-foreground mb-6">Start selling by creating your first listing</p>
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+              <div className="text-5xl mx-auto mb-4">📦</div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: secondaryColor }}>No Listings Yet</h3>
+              <p className="text-gray-600 mb-6">Start selling by creating your first listing</p>
               <Link href="/create-listing">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg">
+                <Button className="text-white rounded-lg" style={{ backgroundColor: primaryColor }}>
                   Create Your First Listing
                 </Button>
               </Link>

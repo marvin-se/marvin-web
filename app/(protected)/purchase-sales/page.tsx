@@ -64,7 +64,8 @@ function TransactionCard({ item, type }: { item: any, type: 'purchase' | 'sale' 
 
 export default function PurchaseSalesPage() {
   return (
-    <div className="container mx-auto py-10 pt-24 md:pt-32">
+    <div className="min-h-screen bg-[#F5F6F8]">
+      <div className="container mx-auto py-10 pt-24 md:pt-32">
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold">Purchase & Sales</h1>
         <p className="text-muted-foreground mt-2">
@@ -74,9 +75,30 @@ export default function PurchaseSalesPage() {
 
       <Tabs defaultValue="purchases" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="purchases">My Purchases</TabsTrigger>
-          <TabsTrigger value="sales">My Sales</TabsTrigger>
-        </TabsList>
+        <TabsTrigger
+          value="purchases"
+          className="
+            data-[state=active]:bg-[#72C69B]
+            data-[state=active]:text-white 
+            data-[state=inactive]:bg-gray-100
+            data-[state=inactive]:text-gray-600
+          "
+        >
+          My Purchases
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="sales"
+          className="
+            data-[state=active]:bg-[#72C69B]
+            data-[state=active]:text-white 
+            data-[state=inactive]:bg-gray-100
+            data-[state=inactive]:text-gray-600
+          "
+        >
+          My Sales
+        </TabsTrigger>
+      </TabsList>
         <TabsContent value="purchases">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
             {mockPurchases.map((item) => (
@@ -96,6 +118,7 @@ export default function PurchaseSalesPage() {
           </div>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
