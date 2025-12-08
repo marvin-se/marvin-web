@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,95 +17,59 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import { getListingsByUser } from "@/lib/mock-data";
+import { useAuth } from "@/contexts/AuthContext";
+
 const primaryColor = "#72C69B"
 const secondaryColor = "#182C53"
 
 
 export default function ProfilePage() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [listingToDelete, setListingToDelete] = useState<number | null>(null)
-  const [profile, setProfile] = useState({
-    id: 1,
-    full_name: "Alex Chen",
-    email: "alex.chen@university.edu",
-    university: "State University",
-    phone_number: "+1234567890",
+  
+  // Use a default user object if the user from context is not available yet
+  const currentUser = user || {
+    id: 0,
+    full_name: "Loading...",
+    email: "",
+    university: "Loading...",
+    phone_number: "",
     created_at: new Date().toISOString(),
     is_active: true,
-    // Statistics (computed from listings/transactions)
+  };
+
+  const [profile, setProfile] = useState({
+    ...currentUser,
+    // Statistics (these would normally be fetched separately)
     items_sold: 12,
     items_purchased: 8,
     items_listed: 5,
   })
 
-  // Mock user listings - converted to state so we can delete items
-  const [userListings, setUserListings] = useState([
-    {
-      id: 1,
-      title: "Calculus Textbook",
-      description: "Excellent condition calculus textbook.",
-      price: 45,
-      image_url: "https://images.unsplash.com/photo-1543002588-b9b6b622e8af?q=80&w=2835&auto=format&fit=crop",
-      category: "Books",
-      created_at: new Date().toISOString(),
-      created_by: profile.email,
-      updated_at: new Date().toISOString(),
-      updated_by: profile.email,
-    },
-    {
-      id: 2,
-      title: "Monitor 27 inch",
-      description: "High-quality 27-inch monitor.",
-      price: 180,
-      image_url: "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=2832&auto=format&fit=crop",
-      category: "Electronics",
-      created_at: new Date().toISOString(),
-      created_by: profile.email,
-      updated_at: new Date().toISOString(),
-      updated_by: profile.email,
-    },
-    {
-      id: 3,
-      title: "Bookshelf",
-      description: "Spacious bookshelf for organizing books.",
-      price: 85,
-      image_url: "https://images.unsplash.com/photo-1558304923-5383a5544636?q=80&w=2787&auto=format&fit=crop",
-      category: "Furniture",
-      created_at: new Date().toISOString(),
-      created_by: profile.email,
-      updated_at: new Date().toISOString(),
-      updated_by: profile.email,
-    },
-    {
-      id: 4,
-      title: "Running Shoes",
-      description: "Comfortable running shoes in good condition.",
-      price: 70,
-      image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=2787&auto=format&fit=crop",
-      category: "Clothing",
-      created_at: new Date().toISOString(),
-      created_by: profile.email,
-      updated_at: new Date().toISOString(),
-      updated_by: profile.email,
-    },
-    {
-      id: 5,
-      title: "Desk Lamp",
-      description: "Modern desk lamp with adjustable brightness.",
-      price: 25,
-      image_url: "https://images.unsplash.com/photo-1604079359985-c2b42d5a2c13?q=80&w=2787&auto=format&fit=crop",
-      category: "Electronics",
-      created_at: new Date().toISOString(),
-      created_by: profile.email,
-      updated_at: new Date().toISOString(),
-      updated_by: profile.email,
-    },
-  ])
+  // Fetch user listings from the central mock data source
+  const [userListings, setUserListings] = useState(() => 
+    user ? getListingsByUser(user.email) : []
+  );
+
+  // Update listings if the user changes (e.g., after login)
+  useEffect(() => {
+    if (user) {
+      setUserListings(getListingsByUser(user.email));
+      setProfile(prev => ({...prev, ...user}));
+    }
+  }, [user]);
 
   const handleSaveProfile = () => {
     setIsEditing(false)
-    // Handle profile update
+    // In a real app, this would send an update to the backend
+    // For now, we just update the local state
+    if(user) {
+      // This is a mock update. In reality, you'd update AuthContext or refetch the user.
+      console.log("Profile saved:", profile);
+    }
   }
 
   const handleDeleteListing = () => {
@@ -274,13 +238,15 @@ export default function ProfilePage() {
                   {/* Edit/Delete Overlay */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="text-white rounded-lg h-8 px-3 text-xs"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        Edit
-                      </Button>
+                      <Link href={`/listing/${item.id}/edit`}>
+                        <Button
+                          size="sm"
+                          className="text-white rounded-lg h-8 px-3 text-xs"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Edit
+                        </Button>
+                      </Link>
                       <Button
                         size="sm"
                         className="bg-red-500 text-white hover:bg-red-600 rounded-lg h-8 px-3 text-xs border-0"

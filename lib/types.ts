@@ -33,6 +33,7 @@ export interface Listing {
   price: number  // DOUBLE NOT NULL
   image_url: string  // VARCHAR(150) NOT NULL
   category?: string | null  // VAR_CHAR(20) - optional
+  status: 'active' | 'sold'; // Status of the listing
   created_at: string | Date  // TIMESTAMP NOT NULL
   created_by: string  // VARCHAR(100) NOT NULL (user ID or email)
   updated_at: string | Date  // TIMESTAMP NOT NULL

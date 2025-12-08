@@ -4,228 +4,172 @@ import { useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Listing, User } from "@/lib/types"
-import { Heart, Share2, ArrowLeft, Star, ChevronLeft, ChevronRight } from "lucide-react"
+import { Listing } from "@/lib/types"
+import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { getListingById } from "@/lib/mock-data"
 
 const primaryColor = "#72C69B"
-const secondaryColor = "#182C53"
 
 export default function ListingDetailPage() {
-  const params = useParams()
-  const id = params.id
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  
-  // Mock multiple images for the listing
-  const listingImages = [
-    "https://i.redd.it/ujwk6nmh1h481.jpg",
-    "https://i.redd.it/ujwk6nmh1h481.jpg",
-    "https://i.redd.it/ujwk6nmh1h481.jpg",
-  ]
-
-  const handlePrevImage = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? listingImages.length - 1 : prev - 1))
-  }
-
-  const handleNextImage = () => {
-    setCurrentImageIndex((prev) => (prev === listingImages.length - 1 ? 0 : prev + 1))
-  }
-
-  // Mock user data for seller
-  const sellerData: User = {
-    id: 1,
-    full_name: "Alex Chen",
-    email: "alex.chen@example.com",
-    university: "UC Berkeley",
-    phone_number: null,
-    created_at: new Date().toISOString(),
-    is_active: true,
-  }
-
-  // Mock listing data
-  const listing: Listing = {
-    id: 1,
-    title: "Vintage Sector 9 Longboard",
-    description: "Classic longboard, perfect for cruising around campus. Trucks and wheels are in great shape. Minor cosmetic scuffs on the tail. Rides smooth!",
-    price: 85,
-    image_url: "https://i.redd.it/ujwk6nmh1h481.jpg",
-    category: "Sports & Outdoors",
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    created_by: "alex.chen@example.com",
-    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    updated_by: "alex.chen@example.com",
-  }
-
-  const searchParams = useSearchParams()
+  const params = useParams();
+  const id = params.id as string;
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
   const from = searchParams?.get("from");
+
+  // --- Data Fetching ---
+  const details = getListingById(id);
+  
+  if (!details) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Listing Not Found</h1>
+          <p className="text-muted-foreground">This listing may have been removed.</p>
+          <Link href="/browse">
+            <Button className="mt-4">Back to Browse</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { listing, sellerData } = details;
+
+  // --- State and Logic ---
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const isOwner = user?.email === listing.created_by;
+  const isSold = listing.status === 'sold';
+  const isFromHistory = from === 'purchase-sales';
 
   const getBackLink = () => {
     switch (from) {
-      case 'favorites':
-        return { href: '/favorites', label: 'Back to Listings' };
-      case 'purchase-sales':
-        return { href: '/purchase-sales', label: 'Back to Purchase & Sales' };
-      default:
-        return { href: '/browse', label: 'Back to Listings' };
+      case 'favorites': return { href: '/favorites', label: 'Back to Favorites' };
+      case 'purchase-sales': return { href: '/purchase-sales', label: 'Back to Purchase & Sales' };
+      default: return { href: '/browse', label: 'Back to Browse' };
     }
   };
   const { href: backHref, label: backLabel } = getBackLink();
-
-  const timeSincePost = () => {
-    const postedDate = new Date(listing.created_at)
-    const now = new Date()
-    const hoursAgo = Math.floor((now.getTime() - postedDate.getTime()) / (1000 * 60 * 60))
-    return `Posted ${hoursAgo} hours ago`
+  
+  // --- UI Logic ---
+  const renderActionButtons = () => {
+    // Rule 1 & 2: If viewed from history or the item is sold, no primary action is available.
+    if (isFromHistory || isSold) {
+      return null;
+    }
+    // Rule 3: If the user is the owner (and item is active), show "Edit".
+    if (isOwner) {
+      return (
+        <Link href={`/listing/${id}/edit`} className="flex-1">
+          <Button className="w-full font-semibold py-3 rounded-lg" variant="outline">
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Your Listing
+          </Button>
+        </Link>
+      );
+    }
+    // Rule 4: Default case for an active item viewed by a non-owner.
+    return (
+      <Link href={`/messages?recipient=${sellerData.email}`} className="flex-1">
+        <Button className="w-full text-white font-semibold py-3 rounded-lg" style={{ backgroundColor: primaryColor }}>
+          Message Seller
+        </Button>
+      </Link>
+    );
+  };
+  
+  const renderTopBanner = () => {
+    if (isFromHistory) {
+      return (
+        <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md" role="alert">
+          <p className="font-bold flex items-center"><PackageCheck className="mr-2" />Past Transaction</p>
+          <p>This is a record of a past transaction from your history. Actions are disabled.</p>
+        </div>
+      );
+    }
+    if (isSold) {
+      return (
+        <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md" role="alert">
+          <p className="font-bold flex items-center"><AlertTriangle className="mr-2" />Item Sold</p>
+          <p>This item is no longer available for purchase.</p>
+        </div>
+      );
+    }
+    return null;
   }
+  
+  const showSecondaryActions = !isFromHistory && !isSold;
 
   return (
     <main className="min-h-screen bg-white pt-18">
-      <div className="mx-auto max-w-6xl px-6 py-0">
-        {/* Back Button */}
+      <div className="mx-auto max-w-6xl px-6 py-8">
         <Link href={backHref} className="flex items-center text-gray-600 mb-8 hover:text-gray-900">
           <ArrowLeft className="mr-2 h-4 w-4" />
           {backLabel}
         </Link>
+        
+        {renderTopBanner()}
 
-        <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-          {/* Left: Image and Thumbnails */}
-          <div className="lg:col-span-1">
-            <div className="bg-yellow-50 rounded-2xl overflow-hidden relative group mb-4">
-              <img
-                src={listingImages[currentImageIndex] || "/placeholder.svg"}
-                alt={listing.title}
-                className="w-full h-64 object-cover"
-              />
-              
-              {/* Image Navigation Arrows */}
-              {listingImages.length > 1 && (
+        <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
+          {/* Left: Image */}
+          <div>
+            <div className="bg-gray-100 rounded-2xl overflow-hidden relative group mb-4">
+              <img src={listing.image_url || "/placeholder.svg"} alt={listing.title} className="w-full h-96 object-cover" />
+            </div>
+          </div>
+
+          {/* Right: Details, Seller, and Actions */}
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold text-gray-900">{listing.title}</h1>
+            
+            {showSecondaryActions && (
+              <p className="text-3xl font-bold" style={{ color: primaryColor }}>
+                ${listing.price}
+              </p>
+            )}
+
+            <div className="bg-gray-50 rounded-lg p-4 border">
+              <h3 className="font-bold text-gray-900 mb-4 text-sm">Details</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between"><p className="text-gray-600">Category</p><p className="font-medium">{listing.category}</p></div>
+                <div className="flex justify-between"><p className="text-gray-600">University</p><p className="font-medium">{sellerData.university}</p></div>
+                <div className="flex justify-between"><p className="text-gray-600">Posted</p><p className="font-medium">{new Date(listing.created_at).toLocaleDateString()}</p></div>
+              </div>
+            </div>
+
+            <Link href={`/profile/${sellerData.id}`} className="block">
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
+                <img src="/young-student.avif" alt={sellerData.full_name} className="w-14 h-14 rounded-full object-cover"/>
+                <div>
+                  <p className="font-semibold text-gray-900">{sellerData.full_name}</p>
+                  <p className="text-xs text-gray-600">{sellerData.university}</p>
+                </div>
+              </div>
+            </Link>
+            
+            <div className="flex gap-2">
+              {renderActionButtons()}
+              {showSecondaryActions && (
                 <>
-                  <button
-                    onClick={handlePrevImage}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ChevronLeft className="h-6 w-6 text-gray-900" />
-                  </button>
-                  <button
-                    onClick={handleNextImage}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ChevronRight className="h-6 w-6 text-gray-900" />
-                  </button>
+                  <Button className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor }} onClick={() => setIsFavorite(!isFavorite)}>
+                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                  </Button>
+                  <Button className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor, color: 'white' }}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
                 </>
               )}
             </div>
-
-            {/* Thumbnails */}
-            <div className="flex gap-3">
-              {listingImages.map((img, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                    currentImageIndex === index ? 'border-gray-900' : 'border-gray-300'
-                  }`}
-                >
-                  <img src={img} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Middle and Right: Title, Price, Details, and Seller */}
-          <div className="lg:col-span-2">
-            <p className="text-sm text-gray-500 mb-3">{timeSincePost()}</p>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">{listing.title}</h1>
-            <p className="text-3xl font-bold mb-6" style={{ color: primaryColor }}>
-              ${listing.price}
-            </p>
-
-            {/* Details Section */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 mb-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-bold text-gray-900 mb-4 text-sm">Details</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <p className="text-gray-600">Category</p>
-                    <p className="text-gray-900 font-medium">{listing.category}</p>
-                  </div>
-                  <div className="flex justify-between">
-                    <p className="text-gray-600">University</p>
-                    <p className="text-gray-900 font-medium">{sellerData.university}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Seller Card */}
-              <Link href={`/profile/${sellerData.id}`} className="block hover:opacity-80 transition-opacity">
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full">
-                  <img
-                    src="/young-student.avif"
-                    alt={sellerData.full_name}
-                    className="w-14 h-14 rounded-full object-cover flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{sellerData.full_name}</p>
-                    <p className="text-xs text-gray-600">{sellerData.university}</p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-
-            {/* Action Buttons - Horizontal Layout */}
-            <div className="flex gap-2">
-              <Link href="/messages" className="flex-1">
-                <Button className="w-full text-white font-semibold py-3 rounded-lg" style={{ backgroundColor: primaryColor }}>
-                  Message Seller
-                </Button>
-              </Link>
-              <Button 
-                className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg"
-                style={{ backgroundColor: primaryColor }}
-                onClick={() => setIsFavorite(!isFavorite)}
-              >
-                <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-              </Button>
-              <Button 
-                className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg"
-                style={{ backgroundColor: primaryColor, color: 'white' }}
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
         </div>
 
-        {/* Description Section */}
         <div className="mt-12 max-w-3xl">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Description</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Description</h2>
           <p className="text-gray-700 leading-relaxed">{listing.description}</p>
-        </div>
-
-        {/* Similar Items */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Similar Items</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { id: 1, title: "Vintage Sector 9", price: "$72C69B", image: "bg-gray-300" },
-              { id: 2, title: "Mac Manax Sector Longboard", price: "$72C69B", image: "bg-purple-900" },
-              { id: 3, title: "Alinwark Pro", price: "$72C69B", image: "bg-gray-800" },
-              { id: 4, title: "Vintage Longboard", price: "$72C69B", image: "bg-gray-400" },
-            ].map((item) => (
-              <Link key={item.id} href={`/listing/${item.id}`}>
-                <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className={`h-40 w-full ${item.image}`} />
-                  <div className="p-4">
-                    <p className="text-sm text-gray-600 mb-2">Sports & Outdoors</p>
-                    <p className="font-semibold text-gray-900 mb-2 line-clamp-2">{item.title}</p>
-                    <p className="text-lg font-bold" style={{ color: primaryColor }}>{item.price}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
         </div>
       </div>
     </main>
-  )
+  );
 }
