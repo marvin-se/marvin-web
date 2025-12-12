@@ -2,9 +2,23 @@
 
 This repository contains the web frontend for the CampusTrade project, a university student-to-student marketplace. This application is built with Next.js (a React framework) and is responsible for all user-facing web interfaces.
 
-**Note:** This project is for the web frontend only. The backend services and mobile application are developed and maintained by separate teams. This application will consume the APIs provided by the backend team.
+## Getting Started
 
-## Work Breakdown Structure (WBS) - Frontend Tasks
+First, install the dependencies:
+
+```bash
+npm install
+```
+
+Then, run the development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:3000`.
+
+## Project Progress
 
 This section outlines the tasks assigned to the web frontend team, based on the official project WBS.
 
@@ -57,18 +71,6 @@ This section outlines the tasks assigned to the web frontend team, based on the 
 ### T23: Web Deployment
 - **ID T23.1:** [ ] Deploy web app to a hosting service (e.g., Vercel, AWS).
 - **ID T23.2:** [ ] Verify API and database connectivity post-deployment.
-
-## Getting Started
-
-```bash
-# Install dependencies
-npm install
-
-# Run the development server
-npm run dev
-```
-
-The application will be available at `http://localhost:3000`.
 
 ## Technology Stack
 
