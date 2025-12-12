@@ -41,10 +41,10 @@ This section outlines the tasks assigned to the web frontend team, based on the 
 - **ID T5.5:** [ ] Display feedback messages and status notifications.
 
 ### T6: Listings and Browsing Pages
-- **ID T6.1:** [x] Implement product listings page with data fetching (mock).
-- **ID T6.2:** [x] Add filtering by category, university, and keywords.
+- **ID T6.1:** [] Implement product listings page with API data fetching.
+- **ID T6.2:** [] Add filtering by category, university, and keywords.
 - **ID T6.3:** [x] Support pagination or infinite scrolling.
-- **ID T6.4:** [x] Handle empty state and loading indicators.
+- **ID T6.4:** [] Handle empty state and loading indicators.
 
 ### T7: Messaging and Interaction UI
 - **ID T7.1:** [x] Design chat window and message list UI.
