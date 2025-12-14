@@ -7,7 +7,7 @@ import { User } from '@/lib/types';
 // Define the type for the context values
 interface AuthContextType {
   user: User | null;
-  login: (userData: User) => void;
+  login: (token: string, userData: any) => void;
   logout: () => void;
   loading: boolean;
 }
@@ -25,25 +25,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check Local Storage when the page loads
     try {
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
+      const token = localStorage.getItem('token');
+      if (storedUser && token) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const login = (userData: User) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+  const login = (token: string, backendUser: any) => {
+    // Map backend user to frontend User type
+    const user: User = {
+      id: backendUser.id,
+      fullName: backendUser.fullName,
+      email: backendUser.email,
+      university: backendUser.university || null,
+      phoneNumber: backendUser.phoneNumber,
+      profilePicUrl: backendUser.profilePicUrl,
+      createdAt: backendUser.createdAt,
+      isActive: backendUser.isActive,
+      token: token
+    };
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    setUser(user);
     router.push('/browse'); // Redirect to the main page after login
   };
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setUser(null);
     router.push('/auth/login'); // Redirect to the login page after logout
   };

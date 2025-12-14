@@ -57,15 +57,15 @@ export default function Navigation() {
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={undefined} alt={`@${user.full_name}`} />
-                    <AvatarFallback>{user.full_name.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={undefined} alt={`@${user.fullName}`} />
+                    <AvatarFallback>{user.fullName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.full_name}</p>
+                    <p className="text-sm font-medium leading-none">{user.fullName}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
                     </p>
@@ -109,7 +109,7 @@ export default function Navigation() {
                 <Link href="/auth/login">
                   <Button variant="outline">Login</Button>
                 </Link>
-                <Link href="/auth/register">
+                <Link href="/auth/login?tab=register">
                   <Button className="text-white rounded-lg" style={{ backgroundColor: '#72C69B' }}>Register</Button>
                 </Link>
               </div>

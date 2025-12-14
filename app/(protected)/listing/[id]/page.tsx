@@ -134,17 +134,17 @@ export default function ListingDetailPage() {
               <h3 className="font-bold text-gray-900 mb-4 text-sm">Details</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between"><p className="text-gray-600">Category</p><p className="font-medium">{listing.category}</p></div>
-                <div className="flex justify-between"><p className="text-gray-600">University</p><p className="font-medium">{sellerData.university}</p></div>
+                <div className="flex justify-between"><p className="text-gray-600">University</p><p className="font-medium">{sellerData.university?.name || 'N/A'}</p></div>
                 <div className="flex justify-between"><p className="text-gray-600">Posted</p><p className="font-medium">{new Date(listing.created_at).toLocaleDateString()}</p></div>
               </div>
             </div>
 
             <Link href={`/profile/${sellerData.id}`} className="block">
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
-                <img src="/young-student.avif" alt={sellerData.full_name} className="w-14 h-14 rounded-full object-cover"/>
+                <img src="/young-student.avif" alt={sellerData.fullName} className="w-14 h-14 rounded-full object-cover"/>
                 <div>
-                  <p className="font-semibold text-gray-900">{sellerData.full_name}</p>
-                  <p className="text-xs text-gray-600">{sellerData.university}</p>
+                  <p className="font-semibold text-gray-900">{sellerData.fullName}</p>
+                  <p className="text-xs text-gray-600">{sellerData.university?.name || 'University'}</p>
                 </div>
               </div>
             </Link>

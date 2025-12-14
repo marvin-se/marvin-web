@@ -47,8 +47,8 @@ export default function BrowsePage() {
   const universities = useMemo(() => {
     const uniqueUniversities = new Set<string>()
     Object.values(usersMap).forEach((user) => {
-      if (user.university) {
-        uniqueUniversities.add(user.university)
+      if (user.university?.name) {
+        uniqueUniversities.add(user.university.name)
       }
     })
     return Array.from(uniqueUniversities).sort()
@@ -56,7 +56,7 @@ export default function BrowsePage() {
 
   const getUserUniversity = (createdBy: string): string | null => {
     const user = usersMap[createdBy]
-    return user?.university || null
+    return user?.university?.name || null
   }
 
   const filteredListings = listings.filter((listing) => {

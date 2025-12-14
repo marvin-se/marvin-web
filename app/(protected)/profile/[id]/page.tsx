@@ -23,15 +23,12 @@ export default function UserProfilePage() {
     // For now, using mock data
     setProfile({
       id: 1,
-      full_name: "Alex Chen", // decodeURIComponent(userId),
+      fullName: "Alex Chen",
       email: `${userId}@university.edu`,
-      university: "State University",
-      phone_number: null,
-      created_at: new Date().toISOString(),
-      is_active: true,
-      items_sold: 12,
-      items_purchased: 8,
-      items_listed: 5,
+      university: { id: 1, name: "State University" },
+      phoneNumber: null,
+      createdAt: new Date().toISOString(),
+      isActive: true,
     })
     
     // TODO: Replace with API call: const listings = await fetchUserListings(userId)
@@ -132,24 +129,24 @@ export default function UserProfilePage() {
           <div className="flex gap-8 mb-8">
             {/* Avatar */}
             <img
-              src="/young-student.avif"
-              alt={profile.full_name}
+              src={profile.profilePicUrl || "/young-student.avif"}
+              alt={profile.fullName}
               className="w-32 h-32 rounded-full object-cover flex-shrink-0"
             />
             
             {/* Profile Details */}
             <div className="flex-1">
               <h1 className="text-2xl font-bold mb-1" style={{ color: secondaryColor }}>
-                {profile.full_name}
+                {profile.fullName}
               </h1>
-              <p className="text-sm text-gray-600 mb-3">{profile.university} • Campus Community Member</p>
+              <p className="text-sm text-gray-600 mb-3">{profile.university?.name || 'University'}</p>
               <p className="text-sm text-gray-700 mb-4">
                 Active member of the campus marketplace. Quality items and reliable service.
               </p>
               
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <Link href={`/messages?seller=${encodeURIComponent(profile.full_name)}`} className="flex">
+                <Link href={`/messages?seller=${encodeURIComponent(profile.fullName)}`} className="flex">
                   <Button
                     className=" text-white rounded-lg px-4 py-2 text-sm"
                     style={{ backgroundColor: primaryColor }}
@@ -174,9 +171,9 @@ export default function UserProfilePage() {
               <div className="flex items-center justify-center mb-2">
                 <span className="text-xl">📋</span>
               </div>
-              <p className="text-xs text-gray-600 mb-1">Items Listed</p>
+              <p className="text-xs text-gray-600 mb-1">Active Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {profile.items_listed || 0}
+                {userListings.filter(l => l.status === 'active').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -185,16 +182,16 @@ export default function UserProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Items Sold</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {profile.items_sold || 0}
+                {userListings.filter(l => l.status === 'sold').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center mb-2">
-                <span className="text-xl">⭐</span>
+                <span className="text-xl">📦</span>
               </div>
-              <p className="text-xs text-gray-600 mb-1">Campus Rating</p>
+              <p className="text-xs text-gray-600 mb-1">Total Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                4.9/5
+                {userListings.length}
               </p>
             </div>
           </div>

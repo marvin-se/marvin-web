@@ -33,21 +33,16 @@ export default function ProfilePage() {
   // Use a default user object if the user from context is not available yet
   const currentUser = user || {
     id: 0,
-    full_name: "Loading...",
+    fullName: "Loading...",
     email: "",
-    university: "Loading...",
-    phone_number: "",
-    created_at: new Date().toISOString(),
-    is_active: true,
+    university: null,
+    phoneNumber: "",
+    profilePicUrl: null,
+    createdAt: new Date().toISOString(),
+    isActive: true,
   };
 
-  const [profile, setProfile] = useState({
-    ...currentUser,
-    // Statistics (these would normally be fetched separately)
-    items_sold: 12,
-    items_purchased: 8,
-    items_listed: 5,
-  })
+  const [profile, setProfile] = useState(currentUser)
 
   // Fetch user listings from the central mock data source
   const [userListings, setUserListings] = useState(() => 
@@ -78,11 +73,6 @@ export default function ProfilePage() {
     // TODO: Replace with API call: await deleteListing(listingToDelete)
     // For now, just remove from state
     setUserListings((prevListings) => prevListings.filter((listing) => listing.id !== listingToDelete))
-    // Update items_listed count
-    setProfile((prevProfile) => ({
-      ...prevProfile,
-      items_listed: (prevProfile.items_listed || 0) - 1,
-    }))
     setDeleteDialogOpen(false)
     setListingToDelete(null)
   }
@@ -105,20 +95,20 @@ export default function ProfilePage() {
           <div className="flex gap-8 mb-8">
             {/* Avatar */}
             <img
-              src="/young-student.avif"
-              alt={profile.full_name}
+              src={profile.profilePicUrl || "/young-student.avif"}
+              alt={profile.fullName}
               className="w-32 h-32 rounded-full object-cover flex-shrink-0"
             />
             
             {/* Profile Details */}
             <div className="flex-1">
               <h1 className="text-2xl font-bold mb-1" style={{ color: secondaryColor }}>
-                {profile.full_name}
+                {profile.fullName}
               </h1>
-              <p className="text-sm text-gray-600 mb-3">{profile.university} • Graphic Design Major</p>
-              <p className="text-sm text-gray-700 mb-4">
-                Campus creative. Selling my art supplies and books to fund my next project. Always open to trades. 🌟
-              </p>
+              <p className="text-sm text-gray-600 mb-3">{profile.university?.name || 'University'}</p>
+              {profile.phoneNumber && (
+                <p className="text-sm text-gray-700 mb-4">📞 {profile.phoneNumber}</p>
+              )}
               
               {/* Action Buttons */}
               <div className="flex gap-2">
@@ -146,9 +136,9 @@ export default function ProfilePage() {
               <div className="flex items-center justify-center mb-2">
                 <span className="text-xl">📋</span>
               </div>
-              <p className="text-xs text-gray-600 mb-1">Items Listed</p>
+              <p className="text-xs text-gray-600 mb-1">Active Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {profile.items_listed || 0}
+                {userListings.filter(l => l.status === 'active').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -157,16 +147,16 @@ export default function ProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Items Sold</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {profile.items_sold || 0}
+                {userListings.filter(l => l.status === 'sold').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center mb-2">
-                <span className="text-xl">⭐</span>
+                <span className="text-xl">📦</span>
               </div>
-              <p className="text-xs text-gray-600 mb-1">Campus Rating</p>
+              <p className="text-xs text-gray-600 mb-1">Total Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                4.9/5
+                {userListings.length}
               </p>
             </div>
           </div>
@@ -180,8 +170,8 @@ export default function ProfilePage() {
               <div>
                 <label className="text-sm font-semibold block mb-2">Full Name</label>
                 <Input
-                  value={profile.full_name}
-                  onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                  value={profile.fullName}
+                  onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
                   className="rounded-lg"
                 />
               </div>
@@ -199,8 +189,8 @@ export default function ProfilePage() {
               <div>
                 <label className="text-sm font-semibold block mb-2">Phone Number</label>
                 <Input
-                  value={profile.phone_number || ""}
-                  onChange={(e) => setProfile({ ...profile, phone_number: e.target.value })}
+                  value={profile.phoneNumber || ""}
+                  onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })}
                   className="rounded-lg"
                   placeholder="+1234567890"
                 />
@@ -208,7 +198,7 @@ export default function ProfilePage() {
               <div>
                 <label className="text-sm font-semibold block mb-2">University</label>
                 <Input
-                  value={profile.university || ""}
+                  value={profile.university?.name || ""}
                   disabled
                   className="rounded-lg bg-gray-100 cursor-not-allowed"
                 />
