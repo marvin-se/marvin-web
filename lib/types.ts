@@ -1,27 +1,33 @@
 // Shared type definitions for the application
-// These types match the database schema
+// These types match the backend DTOs
 
-// User type - matches the user table in the database
+// University type - matches backend University entity
+export interface University {
+  id: number
+  name: string
+}
+
+// User type - matches backend UserResponse DTO
 export interface User {
-  id: number  // LONG SERIAL
-  full_name: string  // VARCHAR(100) NOT NULL
-  email: string  // VARCHAR(150) NOT NULL
-  password_hash?: string  // VARCHAR(255) NOT NULL - only used for registration/login, not stored in frontend
-  university?: string | null  // VARCHAR(150) - optional
-  phone_number?: string | null  // VAR_CHAR(20) - optional
-  created_at: string | Date  // TIMESTAMP NOT NULL
-  is_active: boolean  // BOOLEAN NOT NULL
+  id: number
+  fullName: string
+  email: string
+  phoneNumber?: string | null
+  university?: University | null
+  profilePicUrl?: string | null
+  createdAt: string | Date
+  isActive: boolean
+  token?: string  // JWT token from login response
   
   // Optional computed/display fields (not in database, calculated from listings/transactions)
-  items_sold?: number  // Number of items sold by this user
-  items_purchased?: number  // Number of items purchased by this user
-  items_listed?: number  // Number of active listings by this user
+  items_sold?: number
+  items_purchased?: number
+  items_listed?: number
 }
 
 // Seller type - represents a User in the context of a listing
-// Uses utility types to pick only needed fields from User, plus optional display fields
-export type Seller = Pick<User, 'id' | 'full_name' | 'university' | 'email'> & {
-  // Optional display-only fields (not in database, computed/display only)
+export type Seller = Pick<User, 'id' | 'fullName' | 'university' | 'email'> & {
+  // Optional display-only fields
 }
 
 // Listing type - matches the products table in the database

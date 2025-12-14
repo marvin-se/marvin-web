@@ -193,7 +193,7 @@ export default function Home() {
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
               <button
-                onClick={() => router.push("/auth/register")}
+                onClick={() => router.push("/auth/login?tab=register")}
                 className="font-semibold text-blue-600 hover:text-blue-700 underline"
               >
                 Sign up here

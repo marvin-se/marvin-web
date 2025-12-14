@@ -9,19 +9,19 @@ import { Listing, User } from './types';
 export const mockUsers: { [key: string]: User } = {
   "test@campus.com": {
     id: 1,
-    full_name: "Test User",
+    fullName: "Test User",
     email: "test@campus.com",
-    university: "Campus University",
-    created_at: new Date().toISOString(),
-    is_active: true,
+    university: { id: 1, name: "Campus University" },
+    createdAt: new Date().toISOString(),
+    isActive: true,
   },
   "jane.doe@university.edu": {
     id: 2,
-    full_name: "Jane Doe",
+    fullName: "Jane Doe",
     email: "jane.doe@university.edu",
-    university: "State University",
-    created_at: new Date().toISOString(),
-    is_active: true,
+    university: { id: 2, name: "State University" },
+    createdAt: new Date().toISOString(),
+    isActive: true,
   },
 };
 
