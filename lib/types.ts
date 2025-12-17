@@ -1,6 +1,16 @@
 // Shared type definitions for the application
 // These types match the backend DTOs
 
+// Category type - directly from backend constants
+export type Category = 
+  |  "ELECTRONICS"
+  | "BOOKS"
+  | "FASHION"
+  | "HOME"
+  | "SPORTS"
+  | "OTHER"
+  
+
 // University type - matches backend University entity
 export interface University {
   id: number
@@ -30,28 +40,52 @@ export type Seller = Pick<User, 'id' | 'fullName' | 'university' | 'email'> & {
   // Optional display-only fields
 }
 
-// Listing type - matches the products table in the database
-export interface Listing {
-  // Required fields from database
-  id: number  // LONG SERIAL
-  title: string  // VARCHAR(100) NOT NULL
-  description: string  // VARCHAR(255) NOT NULL
-  price: number  // DOUBLE NOT NULL
-  image_url: string  // VARCHAR(150) NOT NULL
-  category?: string | null  // VAR_CHAR(20) - optional
-  status: 'active' | 'sold'; // Status of the listing
-  created_at: string | Date  // TIMESTAMP NOT NULL
-  created_by: string  // VARCHAR(100) NOT NULL (user ID or email)
-  updated_at: string | Date  // TIMESTAMP NOT NULL
-  updated_by: string  // VARCHAR(100) NOT NULL (user ID or email)
 
-  // Computed/display fields (can be generated from other fields)
-  details?: Array<{ label: string; value: string }>
+// ----------------------------------------------------------------------
+// NEW LISTING TYPES (Aligned with ProductDTO.Response)
+// ----------------------------------------------------------------------
+
+/**
+ * Interface that directly maps to the backend's ProductDTO.Response.
+ */
+export interface ProductListing {
+  id: number;
+  title: string;
+  description: string;
+  price: number; // BigDecimal from backend maps to number in JS
+  category: Category;
+
+  // New fields from the backend DTO
+  universityName: string; // From user.university.name
+  images: string[]; // List of all image URLs
+  imageUrl: string; // The primary image URL (first item in 'images' list)
+
+  // OWNER ONLY fields
+  favoriteCount?: number;
+  visitCount?: number;
+
+  // Fields needed to satisfy existing frontend logic:
+  // created_by is used for the avatar/university lookup in the old mock data.
+  // We'll use the university name as a default for the avatar initial display, 
+  // as the full user object is not available here.
+  created_by: string; // We map this from 'universityName' or 'id' in the fetch function
 }
+
+/**
+ * Listing interface is now an alias for ProductListing to minimize changes 
+ * in components like BrowsePage.tsx and ListingCard.tsx.
+ */
+export type Listing = ProductListing & {
+    // We add 'status' and 'created_at' back for any component that might rely on the old structure,
+    // assuming the backend fetch handles mapping the Product entity's status and date fields 
+    // onto the DTO's response or that they will be added to the DTO later.
+    status?: 'ACTIVE' | 'SOLD'; 
+    created_at?: string | Date;
+}
+
 
 // Helper type for listing card (only needs minimal fields)
-// This allows ListingCard to work with partial data
 export type ListingCardData = Pick<Listing, 'id' | 'title' | 'price' | 'category'> & {
-  image: string  // Card always needs at least one image (from image_url or image)
+  // Use 'imageUrl' from ProductListing for compatibility
+  image: string;
 }
-

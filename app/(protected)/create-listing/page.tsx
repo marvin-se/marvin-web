@@ -3,16 +3,29 @@
 import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation" 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import FloatingAlert from "@/components/ui/floating-alert"; // <-- TOAST YERİNE KULLANILAN BİLEŞEN
+import { createNewListing } from "@/lib/api/create-listing" // API çağrısı
 
 const primaryColor = "#72C69B"
 const secondaryColor = "#182C53"
 
+// Alert state yapısı
+interface AlertState {
+    visible: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+}
+
 export default function CreateListingPage() {
+  const router = useRouter()
+    
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -21,12 +34,23 @@ export default function CreateListingPage() {
   })
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // TOAST YERİNE KULLANILACAK ALERT STATE
+  const [alert, setAlert] = useState<AlertState>({
+      visible: false,
+      type: 'info',
+      title: '',
+      message: '',
+  });
 
-  const categories = ["Books", "Electronics", "Furniture", "Clothing", "Hobbies", "Other"]
+  // NOTE: Backend'deki enum adlarına uygun (örneğin Sports_Outdoors)
+  const categories = [ "ELECTRONICS", "BOOKS", "FASHION", "HOME", "SPORTS", "OTHER"]
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    // Hata düzeltme
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }))
     }
@@ -34,6 +58,7 @@ export default function CreateListingPage() {
   
   const handleCategoryChange = (value: string) => {
     setFormData((prev) => ({ ...prev, category: value }))
+    // Hata düzeltme
     if (errors.category) {
       setErrors((prev) => ({ ...prev, category: "" }))
     }
@@ -42,6 +67,7 @@ export default function CreateListingPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
+      // NOTE: Burası geçici URL oluşturur. Gerçek projede resim yükleme servisi (S3, Cloudinary) kullanılmalıdır.
       const newImages = Array.from(files).map((file) => URL.createObjectURL(file))
       setUploadedImages((prev) => [...prev, ...newImages])
     }
@@ -55,20 +81,78 @@ export default function CreateListingPage() {
     const newErrors: Record<string, string> = {}
     if (!formData.title.trim()) newErrors.title = "Title is required"
     if (!formData.category) newErrors.category = "Category is required"
+    
+    const priceNumber = Number(formData.price);
     if (!formData.price) newErrors.price = "Price is required"
-    if (isNaN(Number(formData.price))) newErrors.price = "Price must be a number"
+    else if (isNaN(priceNumber)) newErrors.price = "Price must be a number"
+    else if (priceNumber <= 0) newErrors.price = "Price must be greater than zero"
+
     if (!formData.description.trim()) newErrors.description = "Description is required"
     if (uploadedImages.length === 0) newErrors.images = "At least one photo is required"
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (validateForm()) {
-      // TODO: Handle form submission logic here
-      console.log("Form submitted:", { ...formData, images: uploadedImages })
-      // Can add redirection or notification on successful submission
+    
+    // Geçerli değilse hatayı Alert ile göster
+    if (!validateForm()) {
+      setAlert({
+        visible: true,
+        type: 'error',
+        title: "Missing Information",
+        message: "Please fill in all required fields and upload at least one photo.",
+      });
+      return
+    }
+
+    setIsSubmitting(true)
+    
+    // Backend'e gönderilecek veriyi oluştur
+    const listingDataToSend = {
+      title: formData.title,
+      // Backend enum'a uygun formatlama
+      category: formData.category.toUpperCase().replace(/\s/g, '_'), 
+      description: formData.description,
+      price: Number(formData.price), 
+      images: uploadedImages, 
+    }
+
+    try {
+      // API çağrısı
+      const newListing = await createNewListing(listingDataToSend)
+      
+      // Başarılı Alert
+      setAlert({
+        visible: true,
+        type: 'success',
+        title: "Listing is published!",
+        message: "Your new listing has been successfully created. Redirecting...",
+      });
+      
+      // Yönlendirme (Alert'in görünmesine izin vermek için kısa bir süre bekle)
+      setTimeout(() => {
+          router.push(`/listing/${newListing.id}`)
+      }, 1000); 
+
+    } catch (error: any) {
+      console.error("Error while creating listing:", error)
+      
+      // Hata Alert
+      const errorMessage = error.response?.data?.message || "Server unreachable or invalid data.";
+      setAlert({
+        visible: true,
+        type: 'error',
+        title: "Error Occurred",
+        message: `Failed to create listing. Details: ${errorMessage}`,
+      });
+
+    } finally {
+      // Başarılı olursa zaten yönlendirileceği için finally bloğunda sadece hata durumunda kapatma gerekli,
+      // ancak buraya koymak daha güvenlidir.
+      // setIsSubmitting(false) // Yönlendirmeden önce zaten kapanacak
     }
   }
 
@@ -108,7 +192,7 @@ export default function CreateListingPage() {
           >
             <div className="text-4xl mx-auto mb-2">📤</div>
             <p className="font-medium mb-1">Click or drag to upload photos</p>
-            <p className="text-sm text-muted-foreground">PNG, JPG up to 10MB</p>
+            <p className="text-sm text-muted-foreground">PNG, JPG up to 5MB</p>
           </label>
           <input
             id="images"
@@ -139,13 +223,13 @@ export default function CreateListingPage() {
             <div className="grid grid-cols-2 gap-6">
                 <div className="grid gap-2">
                     <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
-                    <Select name="category" onValueChange={handleCategoryChange}>
+                    <Select name="category" onValueChange={handleCategoryChange} value={formData.category}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
                             {categories.map((cat) => (
-                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                <SelectItem key={cat} value={cat}>{cat.replace('_', ' ')}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -180,11 +264,27 @@ export default function CreateListingPage() {
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" size="lg" className="text-white" style={{ backgroundColor: primaryColor }}>
-            Publish Listing
+          <Button 
+            type="submit" 
+            size="lg" 
+            className="text-white" 
+            style={{ backgroundColor: primaryColor }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Yayınlanıyor..." : "Publish Listing"}
           </Button>
         </div>
       </form>
+      
+      {/* FLOATING ALERT RENDER */}
+      {alert.visible && (
+        <FloatingAlert
+          type={alert.type}
+          title={alert.title}
+          message={alert.message}
+          onClose={() => setAlert(prev => ({ ...prev, visible: false }))}
+        />
+      )}
     </div>
   )
 }

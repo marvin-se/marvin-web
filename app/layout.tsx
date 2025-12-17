@@ -5,6 +5,7 @@ import "./globals.css"
 import Navigation from "@/components/navigation";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Footer from "@/components/footer";
+import { Toaster } from "@/components/ui/toaster";
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
