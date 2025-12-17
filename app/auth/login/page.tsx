@@ -17,11 +17,11 @@ const chamferStyle = {
 
 // Universities from backend database
 const universities = [
-  "Istanbul Technical University (ITU)",
-  "Middle East Technical University (METU)",
-  "Yildiz Technical University (YTU)",
-  "Bogazici University",
-  "Hacettepe University"
+  "İstanbul Teknik Üniversitesi",
+  "Orta Doğu Teknik Üniversitesi",
+  "Yıldız Teknik Üniversitesi",
+  "Boğaziçi Üniversitesi",
+  "Hacettepe Üniversitesi"
 ]
 
 export default function LoginPage() {
