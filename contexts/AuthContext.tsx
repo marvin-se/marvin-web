@@ -3,12 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/lib/types';
+import api from '@/lib/api';
 
 // Define the type for the context values
 interface AuthContextType {
   user: User | null;
   login: (token: string, userData: any) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   loading: boolean;
 }
 
@@ -21,41 +23,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true); // For session check on initial page load
   const router = useRouter();
 
-  useEffect(() => {
-    // Check Local Storage when the page loads
+  const refreshUser = async () => {
     try {
-      const storedUser = localStorage.getItem('user');
       const token = localStorage.getItem('token');
-      if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
+      if (token) {
+        const response = await api.get<User>('/user/me');
+        const freshUser = response.data;
+        login(token, freshUser); // Use login to update state and localStorage
       }
     } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-    } finally {
-      setLoading(false);
+      console.error("Failed to refresh user data, logging out.", error);
+      logout(); // If token is invalid or refresh fails, log the user out
     }
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (token) {
+        await refreshUser();
+      }
+      setLoading(false);
+    };
+    initializeAuth();
   }, []);
 
   const login = (token: string, backendUser: any) => {
     // Map backend user to frontend User type
+    // Backend returns universityId and universityName, we need to map to university object
+    const university = (backendUser.universityId && backendUser.universityName) 
+      ? { id: backendUser.universityId, name: backendUser.universityName }
+      : (backendUser.university || null);
+    
     const user: User = {
       id: backendUser.id,
       fullName: backendUser.fullName,
       email: backendUser.email,
-      university: backendUser.university || null,
+      university: university,
       phoneNumber: backendUser.phoneNumber,
       profilePicUrl: backendUser.profilePicUrl,
       createdAt: backendUser.createdAt,
       isActive: backendUser.isActive,
+      items_sold: backendUser.items_sold || 0,
+      items_purchased: backendUser.items_purchased || 0,
+      items_listed: backendUser.items_listed || 0,
       token: token
     };
 
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
-    router.push('/browse'); // Redirect to the main page after login
   };
 
   const logout = () => {
@@ -66,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

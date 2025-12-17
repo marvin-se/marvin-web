@@ -22,7 +22,12 @@ interface ListingCardProps {
   onFavoriteToggle?: (id: number) => void
 }
 
-export default function ListingCard({ listing, from, isFavorited, onFavoriteToggle }: ListingCardProps) {
+export default function ListingCard({
+  listing,
+  from,
+  isFavorited,
+  onFavoriteToggle,
+}: ListingCardProps) {
   const [isFavorite, setIsFavorite] = useState<boolean>(!!isFavorited)
 
   // sync internal state when prop changes
@@ -47,18 +52,16 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
           {/* Favorite Button */}
           <button
             onClick={(e) => {
-              e.preventDefault()
+              e.preventDefault();
               if (onFavoriteToggle) {
-                // If coming from favorites and currently favorited, open the confirmation dialog
-                if (from === "favorites" && isFavorite) {
-                  setConfirmOpen(true)
+                if (isFavorite) {
+                  setConfirmOpen(true);
                 } else {
-                  onFavoriteToggle(listing.id)
+                  onFavoriteToggle(listing.id);
                 }
-                return
+              } else {
+                setIsFavorite(!isFavorite);
               }
-
-              setIsFavorite(!isFavorite)
             }}
             className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:shadow-md transition-all hover:scale-110"
           >
@@ -97,11 +100,12 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
-                  // prevent the click from bubbling to the parent Link and causing navigation
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (onFavoriteToggle) onFavoriteToggle(listing.id);
-                  setConfirmOpen(false);
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if (onFavoriteToggle) {
+                    onFavoriteToggle(listing.id)
+                  }
+                  setConfirmOpen(false)
                 }}
               >
                 Remove
@@ -127,3 +131,15 @@ export default function ListingCard({ listing, from, isFavorited, onFavoriteTogg
     </Link>
   )
 }
+
+ListingCard.Skeleton = function ListingCardSkeleton() {
+  return (
+    <div className="group rounded-2xl bg-white overflow-hidden shadow-sm border border-gray-100">
+      <div className="relative h-64 bg-gray-200 animate-pulse" />
+      <div className="p-4">
+        <div className="h-5 bg-gray-200 rounded w-3/4 mb-2 animate-pulse" />
+        <div className="h-7 bg-gray-200 rounded w-1/2 mb-3 animate-pulse" />
+      </div>
+    </div>
+  );
+};

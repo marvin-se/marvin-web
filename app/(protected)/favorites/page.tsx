@@ -1,83 +1,110 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import ListingCard from "@/components/listing-card"
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import ListingCard from "@/components/listing-card";
+import { useAuth } from "@/contexts/AuthContext";
+import api from "@/lib/api";
+import { Listing, Favorite } from "@/lib/types";
 
-const primaryColor = "#72C69B"
-const secondaryColor = "#182C53"
-
+const primaryColor = "#72C69B";
+const secondaryColor = "#182C53";
 
 export default function FavoritesPage() {
-  // Mock favorites data (stateful so we can remove items)
-  const [favorites, setFavorites] = useState([
-    {
-      id: 1,
-      title: "Calculus Textbook",
-      description: "Excellent condition calculus textbook.",
-      price: 45,
-      image_url: "/placeholder.svg?key=qocij",
-      category: "Books",
-      campus: "Main",
-      created_at: new Date().toISOString(),
-      created_by: "user1@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user1@example.com",
-    },
-    {
-      id: 2,
-      title: "Macbook Pro 2020",
-      description: "Well-maintained MacBook Pro.",
-      price: 800,
-      image_url: "/placeholder.svg?key=z2grh",
-      category: "Electronics",
-      campus: "North",
-      created_at: new Date().toISOString(),
-      created_by: "user2@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user2@example.com",
-    },
-    {
-      id: 3,
-      title: "IKEA Desk",
-      description: "Sturdy IKEA desk in great condition.",
-      price: 120,
-      image_url: "/placeholder.svg?key=ys508",
-      category: "Furniture",
-      campus: "Main",
-      created_at: new Date().toISOString(),
-      created_by: "user3@example.com",
-      updated_at: new Date().toISOString(),
-      updated_by: "user3@example.com",
-    },
-  ])
+  const { user } = useAuth();
+  const [favorites, setFavorites] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const emptyFavorites = favorites.length === 0
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!user) {
+        setError("Please log in to view your favorites.");
+        setLoading(false);
+        return;
+      }
 
-  const handleRemoveFavorite = (id: number) => {
-    setFavorites((prev) => prev.filter((item) => item.id !== id))
-  }
+      try {
+        setLoading(true);
+        const favsResponse = await api.get<Favorite[]>(`/favourites/${user.id}`);
+        const productIds = favsResponse.data.map((fav) => fav.productId);
+
+        if (productIds.length > 0) {
+          const productPromises = productIds.map((id) =>
+            api.get<Listing>(`/listings/${id}`)
+          );
+          const productResponses = await Promise.all(productPromises);
+          setFavorites(productResponses.map((res) => res.data));
+        } else {
+          setFavorites([]);
+        }
+        setError(null);
+      } catch (err) {
+        console.error("Failed to fetch favorites:", err);
+        setError("Could not load your favorites. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFavorites();
+  }, [user]);
+
+  const handleRemoveFavorite = async (productId: number) => {
+    if (!user) return;
+
+    try {
+      await api.delete(`/favourites/${user.id}/${productId}`);
+      setFavorites((prev) => prev.filter((item) => item.id !== productId));
+    } catch (err) {
+      console.error("Failed to remove favorite:", err);
+      // Optionally, show a toast notification for the error
+      setError("Could not remove the item. Please try again.");
+    }
+  };
+  
+  const emptyFavorites = favorites.length === 0;
 
   return (
     <main className="min-h-screen bg-background">
-      
-
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: secondaryColor }}>My Favorites</h1>
-          <p className="text-muted-foreground">Items you've saved for later</p>
+          <h1
+            className="text-3xl font-bold mb-2"
+            style={{ color: secondaryColor }}
+          >
+            My Favorites
+          </h1>
+          <p className="text-muted-foreground">
+            Items you've saved for later
+          </p>
         </div>
 
-        {emptyFavorites ? (
+        {loading ? (
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+           {[...Array(3)].map((_, i) => (
+             <ListingCard.Skeleton key={i} />
+           ))}
+         </div>
+        ) : error ? (
+            <div className="text-center py-20">
+                <p className="text-red-500">{error}</p>
+            </div>
+        ) : emptyFavorites ? (
           <div className="text-center py-20">
             <div className="flex justify-center mb-6">
               <div className="p-6 bg-card rounded-full text-5xl">❤️</div>
             </div>
             <h2 className="text-2xl font-bold mb-2">No Favorites Yet</h2>
-            <p className="text-muted-foreground mb-6">Start exploring and save items you like</p>
+            <p className="text-muted-foreground mb-6">
+              Start exploring and save items you like
+            </p>
             <Link href="/browse">
-              <Button className="text-white rounded-lg" style={{ backgroundColor: primaryColor }}>
+              <Button
+                className="text-white rounded-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
                 Browse Marketplace
               </Button>
             </Link>
@@ -97,5 +124,5 @@ export default function FavoritesPage() {
         )}
       </div>
     </main>
-  )
+  );
 }

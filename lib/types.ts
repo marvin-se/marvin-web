@@ -89,3 +89,9 @@ export type ListingCardData = Pick<Listing, 'id' | 'title' | 'price' | 'category
   // Use 'imageUrl' from ProductListing for compatibility
   image: string;
 }
+
+export interface Favorite {
+  id: number;
+  userId: number;
+  productId: number;
+}

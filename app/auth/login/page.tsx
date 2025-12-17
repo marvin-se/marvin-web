@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,20 +26,37 @@ const universities = [
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { login } = useAuth()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [activeTab, setActiveTab] = useState<"login" | "register" | "verify">("login")
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [showVerifyInRegister, setShowVerifyInRegister] = useState(false)
+  const [resendDisabled, setResendDisabled] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const timerRef = useRef<number | null>(null)
   
   // Set initial tab from URL parameter
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'register' || tab === 'verify') {
+    if (tab === 'register') {
       setActiveTab(tab)
     }
   }, [searchParams])
+
+  // Cleanup verification timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [])
   
   // Register state
   const [fullName, setFullName] = useState("")
@@ -52,8 +69,13 @@ export default function LoginPage() {
   const [verifyEmail, setVerifyEmail] = useState("")
   const [verificationCode, setVerificationCode] = useState("")
   
-  const { login } = useAuth()
-
+  // Pending verification flow (for users who registered but didn't verify)
+  const [showPendingVerify, setShowPendingVerify] = useState(false)
+  const [pendingCode, setPendingCode] = useState("")
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [pendingError, setPendingError] = useState<string | null>(null)
+  const [pendingSuccess, setPendingSuccess] = useState<string | null>(null)
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -67,6 +89,10 @@ export default function LoginPage() {
       
       const { token, user } = response.data
       login(token, user)
+      // Redirect to browse page after successful login
+      setTimeout(() => {
+        router.push('/browse')
+      }, 100)
     } catch (err: any) {
       console.error('Login error:', err)
       const errorData = err.response?.data
@@ -78,6 +104,16 @@ export default function LoginPage() {
       } else if (errorData?.error) {
         errorMessage = errorData.error
       }
+      
+      // If account is not verified, show verification code input
+      if (/not verified|unverified|verify your|verification/i.test(errorMessage)) {
+        setShowPendingVerify(true)
+        setPendingError(null)
+        setPendingSuccess(null)
+        setError('Your account is not verified. Please enter the verification code sent to your email.')
+        return
+      }
+      
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -108,9 +144,24 @@ export default function LoginPage() {
         phoneNumber: phoneNumber || null
       })
       
+      // Show inline verification UI and start 5 minute timer
       setVerifyEmail(registerEmail)
-      setActiveTab('verify')
+      setShowVerifyInRegister(true)
+      setSuccess('Verification code sent to your email. Enter it below within 5 minutes.')
       setError(null)
+      setResendDisabled(true)
+      setSecondsLeft(5 * 60)
+      if (timerRef.current) window.clearInterval(timerRef.current)
+      timerRef.current = window.setInterval(() => {
+        setSecondsLeft((s) => {
+          if (s <= 1) {
+            if (timerRef.current) window.clearInterval(timerRef.current)
+            setResendDisabled(false)
+            return 0
+          }
+          return s - 1
+        })
+      }, 1000)
     } catch (err: any) {
       console.error('Register error:', err)
       const errorData = err.response?.data
@@ -122,7 +173,151 @@ export default function LoginPage() {
       } else if (errorData?.error) {
         errorMessage = errorData.error
       }
+      if (typeof errorMessage === 'string' && /university not found/i.test(errorMessage)) {
+        errorMessage = 'The email domain does not match the selected university.'
+      }
+      
+      // Check if email exists but user is not verified - offer verification flow
+      if (err?.response?.status === 409 || /already exists/i.test(errorMessage)) {
+        try {
+          const checkUser = await api.get(`/user/get-inactive-user/${encodeURIComponent(registerEmail)}`)
+          if (checkUser?.status === 200 && checkUser?.data) {
+            // User exists but not verified - show verification UI
+            setVerifyEmail(registerEmail)
+            setShowVerifyInRegister(true)
+            setError(null)
+            setSuccess('This email is already registered but not verified. Please enter the verification code sent to your email. If the code expired, please contact support.')
+            return
+          }
+        } catch {
+          // User doesn't exist or is already verified - show normal error
+        }
+      }
+      
       setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Verify pending account (user entered code after login failed due to unverified account)
+  const handleVerifyPending = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !pendingCode) {
+      setPendingError('Please enter the verification code.')
+      return
+    }
+    setPendingLoading(true)
+    setPendingError(null)
+    try {
+      await api.post('/auth/verify', {
+        email: email,
+        token: pendingCode
+      })
+      setPendingSuccess('Email verified successfully! You can now login.')
+      setShowPendingVerify(false)
+      setError(null)
+      setSuccess('Email verified successfully! You can now login.')
+      setPendingCode('')
+    } catch (err: any) {
+      console.error('Verify pending error:', err)
+      const errorData = err.response?.data
+      let errorMessage = 'Verification failed. Please check your code.'
+      if (typeof errorData === 'string') {
+        errorMessage = errorData
+      } else if (errorData?.message) {
+        errorMessage = errorData.message
+      }
+      if (/expired/i.test(errorMessage)) {
+        errorMessage = 'Your verification code has expired. Click "Resend Code" to get a new one.'
+      }
+      setPendingError(errorMessage)
+    } finally {
+      setPendingLoading(false)
+    }
+  }
+
+  // Resend verification code for pending/unverified account (uses login form password)
+  const handleResendPending = async () => {
+    if (!email || !password) {
+      setPendingError('Please make sure email and password are filled in the login form above.')
+      return
+    }
+    setPendingLoading(true)
+    setPendingError(null)
+    setPendingSuccess(null)
+    try {
+      // Try to get user info to find their university
+      const userResponse = await api.get(`/user/get-inactive-user/${encodeURIComponent(email)}`)
+      const userData = userResponse?.data
+      
+      if (userData) {
+        // We have user data, try to trigger a new code by calling register
+        // Backend should detect existing unverified user and resend code
+        await api.post('/auth/register', {
+          fullName: userData.fullName || 'User',
+          email: email,
+          password: password,
+          university: userData.university?.name || userData.universityName || 'Istanbul Technical University (ITU)',
+          phoneNumber: null
+        })
+        setPendingSuccess('New verification code sent! Please check your email.')
+        setPendingCode('')
+      } else {
+        setPendingError('Could not find your account. Please try registering again.')
+      }
+    } catch (err: any) {
+      console.error('Resend pending error:', err)
+      const errorData = err.response?.data
+      let errorMessage = 'Unable to resend verification code.'
+      if (typeof errorData === 'string') {
+        errorMessage = errorData
+      } else if (errorData?.message) {
+        errorMessage = errorData.message
+      }
+      // If register says "already exists", that's expected - check if code was sent
+      if (/already exists/i.test(errorMessage)) {
+        setPendingSuccess('If your account exists, a new verification code has been sent. Please check your email.')
+        setPendingCode('')
+      } else {
+        setPendingError(errorMessage + ' Please contact support if the problem persists.')
+      }
+    } finally {
+      setPendingLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (resendDisabled) return
+    setLoading(true)
+    setError(null)
+    try {
+      // Backend does not support a dedicated resend endpoint; re-call register to resend the code
+      await api.post('/auth/register', {
+        fullName,
+        email: registerEmail,
+        password: registerPassword,
+        university,
+        phoneNumber: phoneNumber || null
+      })
+      setSuccess('Verification code resent. Please check your email.')
+      // restart timer
+      setResendDisabled(true)
+      setSecondsLeft(5 * 60)
+      if (timerRef.current) window.clearInterval(timerRef.current)
+      timerRef.current = window.setInterval(() => {
+        setSecondsLeft((s) => {
+          if (s <= 1) {
+            if (timerRef.current) window.clearInterval(timerRef.current)
+            setResendDisabled(false)
+            return 0
+          }
+          return s - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      console.error('Resend error:', err)
+      setError('Unable to resend verification code. Try again later.')
     } finally {
       setLoading(false)
     }
@@ -143,7 +338,8 @@ export default function LoginPage() {
         email: verifyEmail,
         token: verificationCode
       })
-      
+      // hide inline verify UI and go to login
+      setShowVerifyInRegister(false)
       setActiveTab('login')
       setEmail(verifyEmail)
       setError(null)
@@ -190,7 +386,7 @@ export default function LoginPage() {
               {/* Tabs */}
               <div className="flex border-b border-gray-300">
                 <button
-                  onClick={() => { setActiveTab("login"); setError(null); setSuccess(null); }}
+                  onClick={() => { setActiveTab("login"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
                   className={`flex-1 py-3 text-center font-semibold transition-colors ${
                     activeTab === "login"
                       ? `border-b-2`
@@ -204,7 +400,7 @@ export default function LoginPage() {
                   Login
                 </button>
                 <button
-                  onClick={() => { setActiveTab("register"); setError(null); setSuccess(null); }}
+                  onClick={() => { setActiveTab("register"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
                   className={`flex-1 py-3 text-center font-semibold transition-colors ${
                     activeTab === "register"
                       ? `border-b-2`
@@ -216,20 +412,6 @@ export default function LoginPage() {
                   }}
                 >
                   Register
-                </button>
-                <button
-                  onClick={() => { setActiveTab("verify"); setError(null); setSuccess(null); }}
-                  className={`flex-1 py-3 text-center font-semibold transition-colors ${
-                    activeTab === "verify"
-                      ? `border-b-2`
-                      : "text-gray-500"
-                  }`}
-                  style={{
-                    color: activeTab === "verify" ? brandColor : undefined,
-                    borderColor: activeTab === "verify" ? brandColor : undefined,
-                  }}
-                >
-                  Verify
                 </button>
               </div>
 
@@ -307,6 +489,66 @@ export default function LoginPage() {
                       {loading ? 'Logging in...' : 'Login'}
                     </Button>
                   </form>
+
+                  {/* Pending Verification UI - shown when login fails due to unverified account */}
+                  {showPendingVerify && (
+                    <div className="mt-4 p-4 border border-amber-200 rounded-md bg-amber-50 space-y-4">
+                      <div>
+                        <h3 className="text-md font-semibold" style={{ color: brandColor }}>Enter Verification Code</h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Please enter the 6-digit verification code sent to <strong>{email}</strong>
+                        </p>
+                      </div>
+
+                      {pendingSuccess && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                          <span className="font-medium">Success:</span> {pendingSuccess}
+                        </div>
+                      )}
+
+                      {pendingError && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                          <span className="font-medium">Error:</span> {pendingError}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleVerifyPending} className="space-y-3">
+                        <div>
+                          <Label htmlFor="pending-code" className="text-sm font-medium" style={{ color: brandColor }}>
+                            Verification Code
+                          </Label>
+                          <Input
+                            id="pending-code"
+                            type="text"
+                            placeholder="Enter 6-digit code"
+                            value={pendingCode}
+                            onChange={(e) => setPendingCode(e.target.value)}
+                            className="mt-2 border border-gray-300 rounded-md px-4 py-2"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          disabled={pendingLoading}
+                          className="w-full py-2 font-semibold rounded-md text-white"
+                          style={{ backgroundColor: brandColor }}
+                        >
+                          {pendingLoading ? 'Verifying...' : 'Verify Email'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleResendPending}
+                          disabled={pendingLoading}
+                          variant="outline"
+                          className="w-full py-2 font-semibold rounded-md"
+                        >
+                          {pendingLoading ? 'Sending...' : 'Resend Code'}
+                        </Button>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Code expired? Click "Resend Code" to get a new one.
+                        </p>
+                      </form>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -424,69 +666,53 @@ export default function LoginPage() {
                       {loading ? 'Creating Account...' : 'Create Account'}
                     </Button>
                   </form>
+                    {/* Inline Verify UI shown after successful registration */}
+                    {showVerifyInRegister && (
+                      <div className="mt-6 space-y-4">
+                        <div>
+                          <h2 className="text-lg font-semibold" style={{ color: brandColor }}>Verify Your Email</h2>
+                          <p className="text-sm text-gray-600">A verification code was sent to your email. Enter it below within 5 minutes.</p>
+                        </div>
+
+                        {success && (
+                          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                            <span className="font-medium">Success:</span> {success}
+                          </div>
+                        )}
+
+                        {error && (
+                          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                            <span className="font-medium">Error:</span> {error}
+                          </div>
+                        )}
+
+                        <form onSubmit={handleVerify} className="space-y-4">
+                          <div>
+                            <Label htmlFor="verify-email-inline" className="text-sm font-medium" style={{ color: brandColor }}>Email</Label>
+                            <Input id="verify-email-inline" type="email" required value={verifyEmail} readOnly className="mt-2 border border-gray-300 rounded-md px-4 py-2 bg-gray-100" />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="verification-code-inline" className="text-sm font-medium" style={{ color: brandColor }}>Verification Code</Label>
+                            <Input id="verification-code-inline" type="text" placeholder="Enter 6-digit code" required value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} className="mt-2 border border-gray-300 rounded-md px-4 py-2" />
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <Button type="submit" disabled={loading} className="py-2 px-4 font-semibold rounded-md text-white" style={{ backgroundColor: brandColor }}>
+                              {loading ? 'Verifying...' : 'Verify Email'}
+                            </Button>
+
+                            <Button type="button" onClick={handleResend} disabled={resendDisabled || loading} className={`py-2 px-4 font-semibold rounded-md`}>
+                              {resendDisabled ? `Resend available in ${Math.floor(secondsLeft/60)}:${String(secondsLeft%60).padStart(2,'0')}` : 'Resend Code'}
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
                 </>
               )}
 
-              {/* VERIFY TAB */}
-              {activeTab === "verify" && (
-                <>
-                  <div>
-                    <h1 className="text-2xl font-bold" style={{ color: brandColor }}>
-                      Verify Email
-                    </h1>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Enter the verification code sent to your email
-                    </p>
-                  </div>
-
-                  {/* Error Message */}
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                      <span className="font-medium">Error:</span> {error}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleVerify} className="space-y-4">
-                    <div>
-                      <Label htmlFor="verify-email" className="text-sm font-medium" style={{ color: brandColor }}>
-                        Email
-                      </Label>
-                      <Input
-                        id="verify-email"
-                        type="email"
-                        required
-                        value={verifyEmail}
-                        onChange={(e) => setVerifyEmail(e.target.value)}
-                        className="mt-2 border border-gray-300 rounded-md px-4 py-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="verification-code" className="text-sm font-medium" style={{ color: brandColor }}>
-                        Verification Code
-                      </Label>
-                      <Input
-                        id="verification-code"
-                        type="text"
-                        placeholder="Enter 6-digit code"
-                        required
-                        value={verificationCode}
-                        onChange={(e) => setVerificationCode(e.target.value)}
-                        className="mt-2 border border-gray-300 rounded-md px-4 py-2"
-                      />
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3 font-semibold rounded-md text-white"
-                      style={{ backgroundColor: brandColor }}
-                    >
-                      {loading ? 'Verifying...' : 'Verify Email'}
-                    </Button>
-                  </form>
-                </>
-              )}
+              
             </div>
           </div>
         </div>

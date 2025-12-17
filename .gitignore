@@ -28,3 +28,4 @@ next-env.d.ts
 
 # backend (managed separately)
 /marvin-be/
+/marvin-be-dev/

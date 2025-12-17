@@ -17,55 +17,70 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-import { getListingsByUser } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
+import { User, Listing } from "@/lib/types";
+import api from "@/lib/api";
 
-const primaryColor = "#72C69B"
-const secondaryColor = "#182C53"
-
+const primaryColor = "#72C69B";
+const secondaryColor = "#182C53";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
-  const [isEditing, setIsEditing] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [listingToDelete, setListingToDelete] = useState<number | null>(null)
-  
-  // Use a default user object if the user from context is not available yet
-  const currentUser = user || {
-    id: 0,
-    fullName: "Loading...",
-    email: "",
-    university: null,
-    phoneNumber: "",
-    profilePicUrl: null,
-    createdAt: new Date().toISOString(),
-    isActive: true,
-  };
+  const { user, refreshUser } = useAuth();
+  const [profile, setProfile] = useState<User | null>(user); // Initialize with context data
+  const [userListings, setUserListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [profile, setProfile] = useState(currentUser)
+  const [isEditing, setIsEditing] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [listingToDelete, setListingToDelete] = useState<number | null>(null);
 
-  // Fetch user listings from the central mock data source
-  const [userListings, setUserListings] = useState(() => 
-    user ? getListingsByUser(user.email) : []
-  );
-
-  // Update listings if the user changes (e.g., after login)
   useEffect(() => {
-    if (user) {
-      setUserListings(getListingsByUser(user.email));
-      setProfile(prev => ({...prev, ...user}));
-    }
+    const fetchListings = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Only fetch listings, as the profile data is now from the context
+        const listingsResponse = await api.get<Listing[]>(
+          `/seller/${user.id}/listings`
+        );
+        setUserListings(listingsResponse.data);
+      } catch (err) {
+        console.error("Failed to fetch listings:", err);
+        setError("Could not load your listings. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Set profile from the (now fresh) context user data
+    setProfile(user);
+    fetchListings();
   }, [user]);
 
-  const handleSaveProfile = () => {
-    setIsEditing(false)
-    // In a real app, this would send an update to the backend
-    // For now, we just update the local state
-    if(user) {
-      // This is a mock update. In reality, you'd update AuthContext or refetch the user.
-      console.log("Profile saved:", profile);
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+
+    const updatedData = {
+      fullName: profile.fullName,
+      phoneNumber: profile.phoneNumber,
+      profilePicUrl: profile.profilePicUrl,
+      universityName: profile.university?.name,
+    };
+
+    try {
+      await api.put<User>("/user/edit-profile", updatedData);
+      await refreshUser(); // This will fetch the latest user data into the context
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+      // You can add a state to show an error message to the user
     }
-  }
+  };
 
   const handleDeleteListing = () => {
     if (listingToDelete === null) return
@@ -95,19 +110,33 @@ export default function ProfilePage() {
           <div className="flex gap-8 mb-8">
             {/* Avatar */}
             <img
-              src={profile.profilePicUrl || "/young-student.avif"}
-              alt={profile.fullName}
+              src={profile?.profilePicUrl || "/young-student.avif"}
+              alt={profile?.fullName || "User Avatar"}
               className="w-32 h-32 rounded-full object-cover flex-shrink-0"
             />
             
             {/* Profile Details */}
             <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-1" style={{ color: secondaryColor }}>
-                {profile.fullName}
-              </h1>
-              <p className="text-sm text-gray-600 mb-3">{profile.university?.name || 'University'}</p>
-              {profile.phoneNumber && (
-                <p className="text-sm text-gray-700 mb-4">📞 {profile.phoneNumber}</p>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                  {profile?.fullName}
+                </h1>
+                {profile?.isActive && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}>
+                    ✓ Active
+                  </span>
+                )}
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-1">📍 {profile?.university?.name || 'No University Set'}</p>
+              <p className="text-sm text-gray-600 mb-1">📧 {profile?.email}</p>
+              
+              {profile?.phoneNumber && (
+                <p className="text-sm text-gray-600 mb-3">📞 {profile.phoneNumber}</p>
+              )}
+              
+              {profile?.createdAt && (
+                <p className="text-xs text-gray-500 mb-4">Member since {new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
               )}
               
               {/* Action Buttons */}
@@ -131,14 +160,14 @@ export default function ProfilePage() {
           </div>
 
           {/* Bottom: Stats Cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-gray-100 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center mb-2">
                 <span className="text-xl">📋</span>
               </div>
               <p className="text-xs text-gray-600 mb-1">Active Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.filter(l => l.status === 'active').length}
+                {(profile?.items_listed || 0) - (profile?.items_sold || 0)}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -147,7 +176,7 @@ export default function ProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Items Sold</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.filter(l => l.status === 'sold').length}
+                {profile?.items_sold || 0}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -156,7 +185,16 @@ export default function ProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Total Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.length}
+                {profile?.items_listed || 0}
+              </p>
+            </div>
+            <div className="bg-gray-100 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-xl">🛍️</span>
+              </div>
+              <p className="text-xs text-gray-600 mb-1">Items Purchased</p>
+              <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                {profile?.items_purchased || 0}
               </p>
             </div>
           </div>
@@ -165,40 +203,45 @@ export default function ProfilePage() {
         {/* Edit Profile Form */}
         {isEditing && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-            <h2 className="text-xl font-bold mb-4" style={{ color: secondaryColor }}>Edit Profile</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold block mb-2">Full Name</label>
-                <Input
-                  value={profile.fullName}
-                  onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                  className="rounded-lg"
-                />
+            <h2 className="text-xl font-bold mb-6" style={{ color: secondaryColor }}>Edit Profile Information</h2>
+            <div className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
+                <div>
+                  <label className="text-sm font-semibold block mb-2">Full Name</label>
+                  <Input
+                    value={profile?.fullName || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, fullName: e.target.value } : null)}
+                    className="rounded-lg"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold block mb-2">Phone Number</label>
+                  <Input
+                    value={profile?.phoneNumber || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, phoneNumber: e.target.value } : null)}
+                    className="rounded-lg"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="text-sm font-semibold block mb-2">Email</label>
+                <label className="text-sm font-semibold block mb-2">Email Address</label>
                 <Input
-                  value={profile.email}
+                  value={profile?.email || ''}
                   disabled
                   className="rounded-lg bg-gray-100 cursor-not-allowed"
                 />
-                 <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-1">
                   Email address cannot be changed.
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-semibold block mb-2">Phone Number</label>
-                <Input
-                  value={profile.phoneNumber || ""}
-                  onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })}
-                  className="rounded-lg"
-                  placeholder="+1234567890"
-                />
-              </div>
+
               <div>
                 <label className="text-sm font-semibold block mb-2">University</label>
                 <Input
-                  value={profile.university?.name || ""}
+                  value={profile?.university?.name || ""}
                   disabled
                   className="rounded-lg bg-gray-100 cursor-not-allowed"
                 />
@@ -206,13 +249,34 @@ export default function ProfilePage() {
                   University cannot be changed after registration.
                 </p>
               </div>
-              <Button
-                onClick={handleSaveProfile}
-                className="w-full text-white rounded-lg"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Save Changes
-              </Button>
+
+              {profile?.createdAt && (
+                <div>
+                  <label className="text-sm font-semibold block mb-2">Member Since</label>
+                  <Input
+                    value={new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    disabled
+                    className="rounded-lg bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleSaveProfile}
+                  className="flex-1 text-white rounded-lg font-semibold"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  onClick={() => setIsEditing(false)}
+                  variant="outline"
+                  className="flex-1 rounded-lg font-semibold"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           </div>
         )}
