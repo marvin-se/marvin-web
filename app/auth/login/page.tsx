@@ -40,6 +40,12 @@ export default function LoginPage() {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const timerRef = useRef<number | null>(null)
   
+  // Pending verification timer state
+  const [pendingResendDisabled, setPendingResendDisabled] = useState(false)
+  const [pendingSecondsLeft, setPendingSecondsLeft] = useState(0)
+  const pendingTimerRef = useRef<number | null>(null)
+  const [pendingAttempts, setPendingAttempts] = useState(0)
+  
   // Set initial tab from URL parameter
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -55,6 +61,10 @@ export default function LoginPage() {
         window.clearInterval(timerRef.current)
         timerRef.current = null
       }
+      if (pendingTimerRef.current) {
+        window.clearInterval(pendingTimerRef.current)
+        pendingTimerRef.current = null
+      }
     }
   }, [])
   
@@ -68,6 +78,7 @@ export default function LoginPage() {
   // Verify state
   const [verifyEmail, setVerifyEmail] = useState("")
   const [verificationCode, setVerificationCode] = useState("")
+  const [registerAttempts, setRegisterAttempts] = useState(0)
   
   // Pending verification flow (for users who registered but didn't verify)
   const [showPendingVerify, setShowPendingVerify] = useState(false)
@@ -203,6 +214,12 @@ export default function LoginPage() {
   // Verify pending account (user entered code after login failed due to unverified account)
   const handleVerifyPending = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (pendingAttempts >= 5) {
+      setPendingError('Too many failed attempts. Please click "Resend Code" to get a new one.')
+      return
+    }
+
     if (!email || !pendingCode) {
       setPendingError('Please enter the verification code.')
       return
@@ -219,7 +236,9 @@ export default function LoginPage() {
       setError(null)
       setSuccess('Email verified successfully! You can now login.')
       setPendingCode('')
+      setPendingAttempts(0)
     } catch (err: any) {
+      setPendingAttempts(prev => prev + 1)
       console.error('Verify pending error:', err)
       const errorData = err.response?.data
       let errorMessage = 'Verification failed. Please check your code.'
@@ -237,35 +256,36 @@ export default function LoginPage() {
     }
   }
 
-  // Resend verification code for pending/unverified account (uses login form password)
+  // Resend verification code for pending/unverified account
   const handleResendPending = async () => {
-    if (!email || !password) {
-      setPendingError('Please make sure email and password are filled in the login form above.')
+    if (pendingResendDisabled) return
+    if (!email) {
+      setPendingError('Please make sure the email is filled in the login form above.')
       return
     }
     setPendingLoading(true)
     setPendingError(null)
     setPendingSuccess(null)
     try {
-      // Try to get user info to find their university
-      const userResponse = await api.get(`/user/get-inactive-user/${encodeURIComponent(email)}`)
-      const userData = userResponse?.data
+      await api.post('/auth/resend', null, { params: { email } })
+      setPendingSuccess('New verification code sent! Please check your email.')
+      setPendingCode('')
+      setPendingAttempts(0)
       
-      if (userData) {
-        // We have user data, try to trigger a new code by calling register
-        // Backend should detect existing unverified user and resend code
-        await api.post('/auth/register', {
-          fullName: userData.fullName || 'User',
-          email: email,
-          password: password,
-          university: userData.university?.name || userData.universityName || 'Istanbul Technical University (ITU)',
-          phoneNumber: null
+      // Start 5 minute timer
+      setPendingResendDisabled(true)
+      setPendingSecondsLeft(5 * 60)
+      if (pendingTimerRef.current) window.clearInterval(pendingTimerRef.current)
+      pendingTimerRef.current = window.setInterval(() => {
+        setPendingSecondsLeft((s) => {
+          if (s <= 1) {
+            if (pendingTimerRef.current) window.clearInterval(pendingTimerRef.current)
+            setPendingResendDisabled(false)
+            return 0
+          }
+          return s - 1
         })
-        setPendingSuccess('New verification code sent! Please check your email.')
-        setPendingCode('')
-      } else {
-        setPendingError('Could not find your account. Please try registering again.')
-      }
+      }, 1000)
     } catch (err: any) {
       console.error('Resend pending error:', err)
       const errorData = err.response?.data
@@ -275,13 +295,7 @@ export default function LoginPage() {
       } else if (errorData?.message) {
         errorMessage = errorData.message
       }
-      // If register says "already exists", that's expected - check if code was sent
-      if (/already exists/i.test(errorMessage)) {
-        setPendingSuccess('If your account exists, a new verification code has been sent. Please check your email.')
-        setPendingCode('')
-      } else {
-        setPendingError(errorMessage + ' Please contact support if the problem persists.')
-      }
+      setPendingError(errorMessage + ' Please contact support if the problem persists.')
     } finally {
       setPendingLoading(false)
     }
@@ -292,15 +306,11 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     try {
-      // Backend does not support a dedicated resend endpoint; re-call register to resend the code
-      await api.post('/auth/register', {
-        fullName,
-        email: registerEmail,
-        password: registerPassword,
-        university,
-        phoneNumber: phoneNumber || null
+      await api.post('/auth/resend', null, {
+        params: { email: registerEmail }
       })
       setSuccess('Verification code resent. Please check your email.')
+      setRegisterAttempts(0)
       // restart timer
       setResendDisabled(true)
       setSecondsLeft(5 * 60)
@@ -325,6 +335,12 @@ export default function LoginPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (registerAttempts >= 5) {
+      setError('Too many failed attempts. Please click "Resend Code" to get a new one.')
+      return
+    }
+
     if (!verifyEmail || !verificationCode) {
       setError("Please enter your email and verification code.")
       return
@@ -344,7 +360,9 @@ export default function LoginPage() {
       setEmail(verifyEmail)
       setError(null)
       setSuccess('Email verified successfully! You can now login.')
+      setRegisterAttempts(0)
     } catch (err: any) {
+      setRegisterAttempts(prev => prev + 1)
       console.error('Verify error:', err)
       const errorData = err.response?.data
       let errorMessage = 'Verification failed. Please check your code.'
@@ -537,11 +555,15 @@ export default function LoginPage() {
                         <Button
                           type="button"
                           onClick={handleResendPending}
-                          disabled={pendingLoading}
+                          disabled={pendingLoading || pendingResendDisabled}
                           variant="outline"
                           className="w-full py-2 font-semibold rounded-md"
                         >
-                          {pendingLoading ? 'Sending...' : 'Resend Code'}
+                          {pendingLoading ? 'Sending...' : 
+                            pendingResendDisabled 
+                              ? `Resend available in ${Math.floor(pendingSecondsLeft/60)}:${String(pendingSecondsLeft%60).padStart(2,'0')}` 
+                              : 'Resend Code'
+                          }
                         </Button>
                         <p className="text-xs text-gray-500 mt-2">
                           Code expired? Click "Resend Code" to get a new one.
