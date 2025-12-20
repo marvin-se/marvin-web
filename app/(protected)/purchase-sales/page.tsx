@@ -1,35 +1,40 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
 import Link from "next/link";
-import { getSoldTransactions } from "@/lib/mock-data";
 import { useAuth } from "@/contexts/AuthContext";
+import api from "@/lib/api";
+import { Transaction, SalesResponse, PurchaseResponse } from "@/lib/types";
 
 // A simple component to display a transaction item
-function TransactionCard({ item, type }: { item: any, type: 'purchase' | 'sale' }) {
-  // In a real app, the 'type' would likely come from the transaction data itself
+function TransactionCard({ transaction, type }: { transaction: Transaction, type: 'purchase' | 'sale' }) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <CardHeader className="p-0">
-        <div className="relative h-40 w-full">
-          <Image src={item.image_url} alt={item.title} layout="fill" objectFit="cover" />
+        <div className="relative h-40 w-full bg-gray-100">
+          <img 
+            src={transaction.product.images?.[0] || "/placeholder.svg"} 
+            alt={transaction.product.title} 
+            className="w-full h-full object-cover"
+          />
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <CardTitle className="text-lg">{item.title}</CardTitle>
+        <CardTitle className="text-lg truncate">{transaction.product.title}</CardTitle>
         <CardDescription className="text-sm text-gray-500">
-          {/* This is a simplification. A real app would store buyer/seller per transaction. */}
-          {type === 'purchase' ? `From: ${item.created_by}` : `To: Unknown Buyer`} 
+          {type === 'purchase' 
+            ? `From: ${transaction.seller.fullName}` 
+            : `To: ${transaction.buyer.fullName}`} 
         </CardDescription>
         <div className="mt-2 flex items-center justify-end">
-          <p className="text-lg font-semibold">${item.price.toFixed(2)}</p>
+          <p className="text-lg font-semibold">${transaction.product.price}</p>
         </div>
       </CardContent>
       <CardFooter className="p-4 bg-gray-50 border-t">
         <p className="text-xs text-gray-500">
-          Transaction Date: {new Date(item.updated_at).toLocaleDateString()}
+          Date: {new Date(transaction.createdAt).toLocaleDateString()}
         </p>
       </CardFooter>
     </Card>
@@ -38,13 +43,44 @@ function TransactionCard({ item, type }: { item: any, type: 'purchase' | 'sale' 
 
 export default function PurchaseSalesPage() {
   const { user } = useAuth();
-  // Fetch sold listings from the central mock data source
-  const transactions = getSoldTransactions();
+  const [purchases, setPurchases] = useState<Transaction[]>([]);
+  const [sales, setSales] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // This is a simplification. In a real app, you'd fetch transactions FOR the specific user.
-  // Here we just split the mock data for demonstration.
-  const purchases = transactions.filter(t => t.created_by !== user?.email); // Mock: purchased from others
-  const sales = transactions.filter(t => t.created_by === user?.email); // Mock: sold by current user
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const [salesRes, purchasesRes] = await Promise.all([
+          api.get<SalesResponse>('/user/sales'),
+          api.get<PurchaseResponse>('/user/purchases')
+        ]);
+
+        if (salesRes.data && salesRes.data.transactions) {
+          setSales(salesRes.data.transactions);
+        }
+        
+        if (purchasesRes.data && purchasesRes.data.transactions) {
+          setPurchases(purchasesRes.data.transactions);
+        }
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F6F8] flex items-center justify-center">
+        <div className="text-xl font-semibold text-gray-500">Loading transactions...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F6F8]">
@@ -62,32 +98,44 @@ export default function PurchaseSalesPage() {
               value="purchases"
               className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
             >
-              My Purchases
+              My Purchases ({purchases.length})
             </TabsTrigger>
             <TabsTrigger
               value="sales"
               className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
             >
-              My Sales
+              My Sales ({sales.length})
             </TabsTrigger>
           </TabsList>
           <TabsContent value="purchases">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
-              {purchases.map((item) => (
-                <Link href={`/listing/${item.id}?from=purchase-sales`} key={item.id}>
-                  <TransactionCard item={item} type="purchase" />
-                </Link>
-              ))}
-            </div>
+            {purchases.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+                {purchases.map((transaction) => (
+                  <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
+                    <TransactionCard transaction={transaction} type="purchase" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                No purchases found.
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="sales">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
-              {sales.map((item) => (
-                <Link href={`/listing/${item.id}?from=purchase-sales`} key={item.id}>
-                  <TransactionCard item={item} type="sale" />
-                </Link>
-              ))}
-            </div>
+            {sales.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+                {sales.map((transaction) => (
+                  <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
+                    <TransactionCard transaction={transaction} type="sale" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                No sales found.
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

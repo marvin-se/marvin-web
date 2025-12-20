@@ -45,7 +45,7 @@ export default function ListingCard({
         {/* Image Container */}
         <div className="relative h-64 bg-gray-100 overflow-hidden">
           <img
-            src={listing.images[0] || "/placeholder.svg"}
+            src={listing.images?.[0] || "/placeholder.svg"}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

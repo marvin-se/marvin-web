@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
@@ -24,7 +24,7 @@ const universities = [
   "Hacettepe Üniversitesi"
 ]
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { login } = useAuth()
@@ -64,6 +64,10 @@ export default function LoginPage() {
       if (pendingTimerRef.current) {
         window.clearInterval(pendingTimerRef.current)
         pendingTimerRef.current = null
+      }
+      if (forgotPasswordTimerRef.current) {
+        window.clearInterval(forgotPasswordTimerRef.current)
+        forgotPasswordTimerRef.current = null
       }
     }
   }, [])
@@ -301,6 +305,164 @@ export default function LoginPage() {
     }
   }
 
+  // Forgot Password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1) // 1: Email, 2: Code, 3: New Password
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [forgotPasswordCode, setForgotPasswordCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null)
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState<string | null>(null)
+
+  // Forgot Password Timer & Limits
+  const [forgotPasswordResendDisabled, setForgotPasswordResendDisabled] = useState(false)
+  const [forgotPasswordSecondsLeft, setForgotPasswordSecondsLeft] = useState(0)
+  const forgotPasswordTimerRef = useRef<number | null>(null)
+  const [forgotPasswordAttempts, setForgotPasswordAttempts] = useState(0)
+
+  const handleForgotPasswordResend = async () => {
+    if (forgotPasswordResendDisabled) return
+    setForgotPasswordLoading(true)
+    setForgotPasswordError(null)
+    setForgotPasswordSuccess(null)
+    try {
+      await api.post('/auth/forgot-password', { email: forgotPasswordEmail })
+      setForgotPasswordSuccess("Reset code resent to your email!")
+      setForgotPasswordAttempts(0)
+      
+      // Start 5 minute timer
+      setForgotPasswordResendDisabled(true)
+      setForgotPasswordSecondsLeft(5 * 60)
+      if (forgotPasswordTimerRef.current) window.clearInterval(forgotPasswordTimerRef.current)
+      forgotPasswordTimerRef.current = window.setInterval(() => {
+        setForgotPasswordSecondsLeft((s) => {
+          if (s <= 1) {
+            if (forgotPasswordTimerRef.current) window.clearInterval(forgotPasswordTimerRef.current)
+            setForgotPasswordResendDisabled(false)
+            return 0
+          }
+          return s - 1
+        })
+      }, 1000)
+    } catch (err: any) {
+      console.error('Resend forgot password error:', err)
+      setForgotPasswordError('Unable to resend verification code.')
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordLoading(true)
+    setForgotPasswordError(null)
+    setForgotPasswordSuccess(null)
+
+    try {
+      if (forgotPasswordStep === 1) {
+        // Step 1: Send Reset Email
+        if (!forgotPasswordEmail) {
+          setForgotPasswordError("Please enter your email address.")
+          setForgotPasswordLoading(false)
+          return
+        }
+        await api.post('/auth/forgot-password', { email: forgotPasswordEmail })
+        setForgotPasswordSuccess("Reset code sent to your email!")
+        setForgotPasswordStep(2)
+        
+        // Start 5 minute timer
+        setForgotPasswordResendDisabled(true)
+        setForgotPasswordSecondsLeft(5 * 60)
+        if (forgotPasswordTimerRef.current) window.clearInterval(forgotPasswordTimerRef.current)
+        forgotPasswordTimerRef.current = window.setInterval(() => {
+          setForgotPasswordSecondsLeft((s) => {
+            if (s <= 1) {
+              if (forgotPasswordTimerRef.current) window.clearInterval(forgotPasswordTimerRef.current)
+              setForgotPasswordResendDisabled(false)
+              return 0
+            }
+            return s - 1
+          })
+        }, 1000)
+
+      } else if (forgotPasswordStep === 2) {
+        // Step 2: Verify Code
+        if (forgotPasswordAttempts >= 5) {
+          setForgotPasswordError('Too many failed attempts. Please click "Resend Code" to get a new one.')
+          setForgotPasswordLoading(false)
+          return
+        }
+
+        if (!forgotPasswordCode) {
+          setForgotPasswordError("Please enter the verification code.")
+          setForgotPasswordLoading(false)
+          return
+        }
+        await api.post('/auth/verify-reset-code', { 
+          email: forgotPasswordEmail, 
+          token: forgotPasswordCode 
+        })
+        setForgotPasswordSuccess("Code verified! Please set your new password.")
+        setForgotPasswordStep(3)
+        setForgotPasswordAttempts(0)
+      } else if (forgotPasswordStep === 3) {
+        // Step 3: Reset Password
+        if (!newPassword || !confirmNewPassword) {
+          setForgotPasswordError("Please fill in all fields.")
+          setForgotPasswordLoading(false)
+          return
+        }
+        if (newPassword !== confirmNewPassword) {
+          setForgotPasswordError("Passwords do not match.")
+          setForgotPasswordLoading(false)
+          return
+        }
+        if (newPassword.length < 8) {
+          setForgotPasswordError("Password must be at least 8 characters long.")
+          setForgotPasswordLoading(false)
+          return
+        }
+        
+        await api.post('/auth/change-password', {
+          email: forgotPasswordEmail,
+          token: forgotPasswordCode,
+          oldPassword: "",
+          newPassword: newPassword,
+          confirmNewPassword: confirmNewPassword,
+          type: "FORGOT_PASSWORD"
+        })
+        
+        setForgotPasswordSuccess("Password reset successfully! You can now login.")
+        setTimeout(() => {
+          setShowForgotPassword(false)
+          setForgotPasswordStep(1)
+          setForgotPasswordEmail("")
+          setForgotPasswordCode("")
+          setNewPassword("")
+          setConfirmNewPassword("")
+          setForgotPasswordSuccess(null)
+        }, 2000)
+      }
+    } catch (err: any) {
+      console.error('Forgot password error:', err)
+      const errorData = err.response?.data
+      let errorMessage = 'An error occurred. Please try again.'
+      if (typeof errorData === 'string') {
+        errorMessage = errorData
+      } else if (errorData?.message) {
+        errorMessage = errorData.message
+      }
+      setForgotPasswordError(errorMessage)
+      if (forgotPasswordStep === 2) {
+        setForgotPasswordAttempts(prev => prev + 1)
+      }
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
   const handleResend = async () => {
     if (resendDisabled) return
     setLoading(true)
@@ -434,7 +596,7 @@ export default function LoginPage() {
               </div>
 
               {/* LOGIN TAB */}
-              {activeTab === "login" && (
+              {activeTab === "login" && !showForgotPassword && (
                 <>
                   {/* Title & Description */}
                   <div>
@@ -469,7 +631,7 @@ export default function LoginPage() {
                       <Input
                         id="email"
                         type="email"
-                        placeholder="m@example.com"
+                        placeholder="x@example.edu.tr"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -493,9 +655,13 @@ export default function LoginPage() {
                     </div>
 
                     <div className="flex justify-end">
-                      <Link href="#" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+                      >
                         Forgot Password?
-                      </Link>
+                      </button>
                     </div>
 
                     <Button
@@ -571,6 +737,146 @@ export default function LoginPage() {
                       </form>
                     </div>
                   )}
+                </>
+              )}
+
+              {/* FORGOT PASSWORD UI */}
+              {activeTab === "login" && showForgotPassword && (
+                <>
+                  <div>
+                    <h1 className="text-2xl font-bold" style={{ color: brandColor }}>
+                      {forgotPasswordStep === 1 ? "Reset Password" : 
+                       forgotPasswordStep === 2 ? "Verify Code" : "New Password"}
+                    </h1>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {forgotPasswordStep === 1 ? "Enter your email to receive a reset code." : 
+                       forgotPasswordStep === 2 ? "Enter the code sent to your email." : "Set your new password."}
+                    </p>
+                  </div>
+
+                  {forgotPasswordSuccess && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                      <span className="font-medium">Success:</span> {forgotPasswordSuccess}
+                    </div>
+                  )}
+
+                  {forgotPasswordError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                      <span className="font-medium">Error:</span> {forgotPasswordError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                    {forgotPasswordStep === 1 && (
+                      <div>
+                        <Label htmlFor="fp-email" className="text-sm font-medium" style={{ color: brandColor }}>
+                          University Email
+                        </Label>
+                        <Input
+                          id="fp-email"
+                          type="email"
+                          placeholder="m@example.com"
+                          required
+                          value={forgotPasswordEmail}
+                          onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                          className="mt-2 border border-gray-300 rounded-md px-4 py-2"
+                        />
+                      </div>
+                    )}
+
+                    {forgotPasswordStep === 2 && (
+                      <div>
+                        <Label htmlFor="fp-code" className="text-sm font-medium" style={{ color: brandColor }}>
+                          Verification Code
+                        </Label>
+                        <Input
+                          id="fp-code"
+                          type="text"
+                          placeholder="Enter 6-digit code"
+                          required
+                          value={forgotPasswordCode}
+                          onChange={(e) => setForgotPasswordCode(e.target.value)}
+                          className="mt-2 border border-gray-300 rounded-md px-4 py-2"
+                        />
+                        <div className="mt-2 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleForgotPasswordResend}
+                            disabled={forgotPasswordResendDisabled || forgotPasswordLoading}
+                            className="text-xs h-auto p-0 hover:bg-transparent"
+                            style={{ color: brandColor }}
+                          >
+                            {forgotPasswordResendDisabled 
+                              ? `Resend available in ${Math.floor(forgotPasswordSecondsLeft/60)}:${String(forgotPasswordSecondsLeft%60).padStart(2,'0')}` 
+                              : 'Resend Code'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {forgotPasswordStep === 3 && (
+                      <>
+                        <div>
+                          <Label htmlFor="new-password" className="text-sm font-medium" style={{ color: brandColor }}>
+                            New Password
+                          </Label>
+                          <Input
+                            id="new-password"
+                            type="password"
+                            placeholder="••••••••"
+                            required
+                            minLength={8}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="mt-2 border border-gray-300 rounded-md px-4 py-2"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="confirm-password" className="text-sm font-medium" style={{ color: brandColor }}>
+                            Confirm Password
+                          </Label>
+                          <Input
+                            id="confirm-password"
+                            type="password"
+                            placeholder="••••••••"
+                            required
+                            minLength={8}
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            className="mt-2 border border-gray-300 rounded-md px-4 py-2"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowForgotPassword(false)
+                          setForgotPasswordStep(1)
+                          setForgotPasswordError(null)
+                          setForgotPasswordSuccess(null)
+                        }}
+                        className="flex-1 py-3 font-semibold rounded-md"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={forgotPasswordLoading}
+                        className="flex-1 py-3 font-semibold rounded-md text-white"
+                        style={{ backgroundColor: brandColor }}
+                      >
+                        {forgotPasswordLoading ? 'Processing...' : 
+                         forgotPasswordStep === 1 ? 'Send Code' : 
+                         forgotPasswordStep === 2 ? 'Verify Code' : 'Reset Password'}
+                      </Button>
+                    </div>
+                  </form>
                 </>
               )}
 
@@ -740,5 +1046,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

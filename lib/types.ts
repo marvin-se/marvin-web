@@ -25,6 +25,7 @@ export interface User {
   phoneNumber?: string | null
   university?: University | null
   profilePicUrl?: string | null
+  description?: string | null
   createdAt: string | Date
   isActive: boolean
   token?: string  // JWT token from login response
@@ -94,4 +95,20 @@ export interface Favorite {
   id: number;
   userId: number;
   productId: number;
+}
+
+export interface Transaction {
+  id: number;
+  product: ProductListing;
+  seller: User;
+  buyer: User;
+  createdAt: string;
+}
+
+export interface SalesResponse {
+  transactions: Transaction[];
+}
+
+export interface PurchaseResponse {
+  transactions: Transaction[];
 }

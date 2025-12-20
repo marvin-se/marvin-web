@@ -31,9 +31,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const freshUser = response.data;
         login(token, freshUser); // Use login to update state and localStorage
       }
-    } catch (error) {
-      console.error("Failed to refresh user data, logging out.", error);
-      logout(); // If token is invalid or refresh fails, log the user out
+    } catch (error: any) {
+      // If 401, it means token is expired or invalid, so we logout
+      if (error.response && error.response.status === 401) {
+        console.log("Session expired, logging out.");
+        logout();
+      } else {
+        console.error("Failed to refresh user data:", error);
+      }
     }
   };
 
