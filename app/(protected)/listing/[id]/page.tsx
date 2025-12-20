@@ -1,14 +1,24 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Listing } from "@/lib/types"
-import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck } from "lucide-react"
+import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2, CheckCircle } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { getListingDetailById } from "@/lib/api/listings" 
+import { getListingDetailById, deleteListing, markAsSold, addToFavorites, removeFromFavorites } from "@/lib/api/listings" 
 import FloatingAlert from "@/components/ui/floating-alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const primaryColor = "#72C69B"
 
@@ -16,18 +26,23 @@ export default function ListingDetailPage() {
   // --- ROUTER & AUTH HOOKS ---
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const from = searchParams?.get("from");
   
   // Data State
   const [listing, setListing] = useState<Listing | null>(null);
+  const [sellerProfile, setSellerProfile] = useState<any>(null); // To store fetched seller details if needed
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // UI State 
   const [isFavorite, setIsFavorite] = useState(false); 
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
+  const [deleteAlert, setDeleteAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
+  const [soldAlert, setSoldAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
+  const [isMarkSoldDialogOpen, setIsMarkSoldDialogOpen] = useState(false);
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -38,6 +53,22 @@ export default function ListingDetailPage() {
       try {
         const fetchedListing = await getListingDetailById(id);
         setListing(fetchedListing);
+        setIsFavorite(!!fetchedListing.isFavourite);
+
+        // If sellerName is missing but we have sellerId, try to fetch seller profile
+        if (!fetchedListing.sellerName && fetchedListing.sellerId) {
+            try {
+                // We use a direct fetch here to avoid circular dependency or complex logic
+                // Assuming api is available globally or imported
+                const { default: api } = await import("@/lib/api");
+                const userRes = await api.get(`/user/${fetchedListing.sellerId}`);
+                setSellerProfile(userRes.data);
+            } catch (err) {
+                console.warn("Failed to fetch seller details (user might be deleted):", err);
+                // Ignore error, we'll just show "Unknown Seller"
+            }
+        }
+
       } catch (e: any) {
         console.error("Fetch Error:", e);
         setError(e.message || "Failed to load listing details.");
@@ -82,6 +113,26 @@ export default function ListingDetailPage() {
     );
   }
   
+  const handleToggleFavorite = async () => {
+    if (!listing) return;
+    
+    // Optimistic update
+    const newState = !isFavorite;
+    setIsFavorite(newState);
+
+    try {
+        if (newState) {
+            await addToFavorites(listing.id);
+        } else {
+            await removeFromFavorites(listing.id);
+        }
+    } catch (err) {
+        console.error("Failed to toggle favorite:", err);
+        // Revert on error
+        setIsFavorite(!newState);
+    }
+  };
+
   const handleShare = () => {
     const listingUrl = window.location.href;
     
@@ -103,11 +154,50 @@ export default function ListingDetailPage() {
       });
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await deleteListing(id);
+      setDeleteAlert({ visible: true, type: 'success', message: 'Listing deleted successfully. Redirecting...' });
+      setTimeout(() => {
+        router.push('/browse');
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to delete listing:", err);
+      setDeleteAlert({ visible: true, type: 'error', message: 'Failed to delete listing. Please try again.' });
+    }
+  };
+
+  const handleMarkAsSold = () => {
+    setIsMarkSoldDialogOpen(true);
+  };
+
+  const confirmMarkAsSold = async () => {
+    try {
+      await markAsSold(id);
+      setSoldAlert({ visible: true, type: 'success', message: 'Item marked as sold successfully.' });
+      // Refresh listing data to update UI state
+      const updatedListing = await getListingDetailById(id);
+      setListing(updatedListing);
+    } catch (err) {
+      console.error("Failed to mark as sold:", err);
+      setSoldAlert({ visible: true, type: 'error', message: 'Failed to mark item as sold.' });
+    } finally {
+      setIsMarkSoldDialogOpen(false);
+    }
+  };
+
   // DTO Adaptation and flags
   const listingCategory = listing.category?.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'N/A';
   
   // NOTE: isOwner logic relies on `created_by` being a unique identifier (like user ID or email)
-  const isOwner = user?.email === listing.created_by; 
+  const isOwner = (user?.id && listing.sellerId) 
+    ? user.id === listing.sellerId 
+    : user?.email === listing.created_by;
+
   const isSold = listing.status === 'SOLD'; // Assuming the default status is 'SOLD' from the backend DTO
   const isFromHistory = from === 'purchase-sales';
   
@@ -118,12 +208,32 @@ export default function ListingDetailPage() {
     
     if (isOwner) {
       return (
-        <Link href={`/listing/${id}/edit`} className="flex-1">
-          <Button className="w-full font-semibold py-3 rounded-lg" variant="outline">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Your Listing
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="flex gap-2 w-full">
+            <Link href={`/listing/${id}/edit`} className="flex-1">
+              <Button className="w-full font-semibold py-3 rounded-lg" variant="outline">
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            </Link>
+            <Button 
+              className="flex-1 font-semibold py-3 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200" 
+              variant="ghost"
+              onClick={handleDelete}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+          <Button 
+            className="w-full font-semibold py-3 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200" 
+            variant="ghost"
+            onClick={handleMarkAsSold}
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Mark as Sold
           </Button>
-        </Link>
+        </div>
       );
     }
     
@@ -206,15 +316,24 @@ export default function ListingDetailPage() {
                         : 'N/A'}
                 </p>
             </div>
+            <div className="flex justify-between"><p className="text-gray-600">Favorites</p><p className="font-medium">{listing.favoriteCount ?? 0}</p></div>
+            <div className="flex justify-between"><p className="text-gray-600">Visits</p><p className="font-medium">{listing.visitCount ?? 0}</p></div>
               </div>
             </div>
 
-            {/* Seller Information (Adapted to use available DTO fields) */}
-            <Link href={`/profile/${listing.created_by}`} className="block"> 
+            {/* Seller Information */}
+            <Link href={isOwner ? '/profile' : `/profile/${listing.sellerId || listing.created_by}`} className="block"> 
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
-                <img src="/young-student.avif" alt={listing.created_by} className="w-14 h-14 rounded-full object-cover"/>
+                <img 
+                  src={sellerProfile?.profilePicUrl || "/young-student.avif"} 
+                  alt={listing.sellerName || sellerProfile?.fullName || "Seller"} 
+                  className="w-14 h-14 rounded-full object-cover"
+                />
                 <div>
-                  <p className="font-semibold text-gray-900">Username</p>
+                  <p className="font-semibold text-gray-900">
+                    {listing.sellerName || sellerProfile?.fullName || "Unknown Seller"}
+                    {isOwner && <span className="ml-2 text-xs text-gray-500">(You)</span>}
+                  </p>
                   <p className="text-xs text-gray-600">{listing.universityName || 'University'}</p>
                 </div>
               </div>
@@ -224,7 +343,7 @@ export default function ListingDetailPage() {
               {renderActionButtons()}
               {showSecondaryActions && (
                 <>
-                  <Button className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor }} onClick={() => setIsFavorite(!isFavorite)}>
+                  <Button className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor }} onClick={handleToggleFavorite}>
                     <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
                   </Button>
                   <Button className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor, color: 'white' }} onClick={handleShare}>
@@ -250,6 +369,39 @@ export default function ListingDetailPage() {
           onClose={() => setShareAlertVisible(false)}
         />
       )}
+
+      {deleteAlert.visible && (
+        <FloatingAlert
+          type={deleteAlert.type}
+          title={deleteAlert.type === 'success' ? "Deleted" : "Error"}
+          message={deleteAlert.message}
+          onClose={() => setDeleteAlert({ ...deleteAlert, visible: false })}
+        />
+      )}
+
+      {soldAlert.visible && (
+        <FloatingAlert
+          type={soldAlert.type}
+          title={soldAlert.type === 'success' ? "Success" : "Error"}
+          message={soldAlert.message}
+          onClose={() => setSoldAlert({ ...soldAlert, visible: false })}
+        />
+      )}
+
+      <AlertDialog open={isMarkSoldDialogOpen} onOpenChange={setIsMarkSoldDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Item as Sold?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this item as sold? This will disable further interactions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMarkAsSold}>Mark as Sold</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </main>
   );

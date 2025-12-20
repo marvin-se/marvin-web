@@ -1,119 +1,120 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import ListingCard from "@/components/listing-card"
-import { User, Listing } from "@/lib/types"
-import { Share2 } from "lucide-react"
+import { PublicProfile, Listing } from "@/lib/types"
+import { Share2, MoreHorizontal, Ban, ShieldCheck } from "lucide-react"
+import api from "@/lib/api"
+import FloatingAlert from "@/components/ui/floating-alert"
+import { useAuth } from "@/contexts/AuthContext"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const primaryColor = "#72C69B"
 const secondaryColor = "#182C53"
 
 export default function UserProfilePage() {
   const params = useParams()
+  const router = useRouter()
+  const { user } = useAuth()
   const userId = params.id as string
-  const [profile, setProfile] = useState<User | null>(null)
+  const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [userListings, setUserListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [shareAlertVisible, setShareAlertVisible] = useState(false)
+  const [blockAlertVisible, setBlockAlertVisible] = useState<{visible: boolean, message: string, type: 'success' | 'error'}>({ visible: false, message: '', type: 'success' })
 
   useEffect(() => {
-    // TODO: Replace with API call: const profile = await fetchUserProfile(userId)
-    // For now, using mock data
-    setProfile({
-      id: 1,
-      fullName: "Alex Chen",
-      email: `${userId}@university.edu`,
-      university: { id: 1, name: "State University" },
-      phoneNumber: null,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-    })
+    // Redirect to private profile if viewing own profile
+    if (user && user.id && userId && user.id.toString() === userId.toString()) {
+      router.replace('/profile');
+      return;
+    }
+
+    const fetchData = async () => {
+      if (!userId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch user profile
+        const profileRes = await api.get<PublicProfile>(`/user/${userId}`);
+        setProfile(profileRes.data);
+
+        // Fetch user listings
+        const listingsRes = await api.get<Listing[]>(`/user/${userId}/listings`);
+        setUserListings(listingsRes.data);
+      } catch (err) {
+        console.error("Failed to fetch user data:", err);
+        setError("Failed to load user profile.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId, user, router])
+
+  const handleShare = () => {
+    const profileUrl = window.location.href;
     
-    // TODO: Replace with API call: const listings = await fetchUserListings(userId)
-    // Mock listings for other users
-    setUserListings([
-      {
-        id: 10,
-        title: "Physics Textbook",
-        description: "Comprehensive physics textbook with all chapters.",
-        price: 55,
-        image_url: "https://images.unsplash.com/photo-1550399105-c4db5fb85c18?q=80&w=2787&auto=format&fit=crop",
-        category: "Books",
-        created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: userId,
-        updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_by: userId,
-      },
-      {
-        id: 11,
-        title: "Gaming Chair",
-        description: "Comfortable gaming chair in excellent condition.",
-        price: 120,
-        image_url: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?q=80&w=2787&auto=format&fit=crop",
-        category: "Furniture",
-        created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: userId,
-        updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_by: userId,
-      },
-      {
-        id: 12,
-        title: "Wireless Mouse",
-        description: "Ergonomic wireless mouse, barely used.",
-        price: 35,
-        image_url: "https://images.unsplash.com/photo-1527814050087-3793815479db?q=80&w=2788&auto=format&fit=crop",
-        category: "Electronics",
-        created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: userId,
-        updated_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_by: userId,
-      },
-      {
-        id: 13,
-        title: "Backpack",
-        description: "Durable backpack perfect for campus life.",
-        price: 40,
-        image_url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=2787&auto=format&fit=crop",
-        category: "Clothing",
-        created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: userId,
-        updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_by: userId,
-      },
-      {
-        id: 14,
-        title: "Chemistry Lab Kit",
-        description: "Complete chemistry lab kit with all equipment.",
-        price: 90,
-        image_url: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=2790&auto=format&fit=crop",
-        category: "Hobbies",
-        created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: userId,
-        updated_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_by: userId,
-      },
-    ])
-    setLoading(false)
-  }, [userId])
+    if (!navigator.clipboard) {
+        alert("Clipboard functionality not supported by this browser.");
+        return;
+    }
+
+    navigator.clipboard.writeText(profileUrl)
+      .then(() => {
+        setShareAlertVisible(true);
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+      });
+  };
+
+  const handleBlockUser = async () => {
+    try {
+      await api.post(`/user/${userId}/block`);
+      setBlockAlertVisible({ visible: true, message: "User has been blocked successfully.", type: 'success' });
+    } catch (err) {
+      console.error("Failed to block user:", err);
+      setBlockAlertVisible({ visible: true, message: "Failed to block user.", type: 'error' });
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    try {
+      await api.delete(`/user/${userId}/unblock`);
+      setBlockAlertVisible({ visible: true, message: "User has been unblocked successfully.", type: 'success' });
+    } catch (err) {
+      console.error("Failed to unblock user:", err);
+      setBlockAlertVisible({ visible: true, message: "Failed to unblock user.", type: 'error' });
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Loading profile...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-xl text-gray-500">Loading profile...</div>
       </div>
     )
   }
 
-  if (!profile) {
+  if (error || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">User Not Found</h2>
-          <p className="text-muted-foreground mb-4">The user profile you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold text-red-600">Error</h1>
+          <p className="text-gray-600">{error || "User not found"}</p>
           <Link href="/browse">
-            <Button>Back to Browse</Button>
+            <Button className="mt-4">Back to Browse</Button>
           </Link>
         </div>
       </div>
@@ -136,44 +137,59 @@ export default function UserProfilePage() {
             
             {/* Profile Details */}
             <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-1" style={{ color: secondaryColor }}>
-                {profile.fullName}
-              </h1>
-              <p className="text-sm text-gray-600 mb-3">{profile.university?.name || 'University'}</p>
-              <p className="text-sm text-gray-700 mb-4">
-                Active member of the campus marketplace. Quality items and reliable service.
-              </p>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold" style={{ color: secondaryColor }}>
+                  {profile.fullName}
+                </h1>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-1">📍 {profile.universityName}</p>
+              
+              {profile.description && (
+                <p className="text-sm text-gray-600 mt-4 max-w-2xl">{profile.description}</p>
+              )}
               
               {/* Action Buttons */}
-              <div className="flex gap-2">
-                <Link href={`/messages?seller=${encodeURIComponent(profile.fullName)}`} className="flex">
-                  <Button
-                    className=" text-white rounded-lg px-4 py-2 text-sm"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    💬 Message Seller
-                  </Button>
-                </Link>
+              <div className="flex gap-2 mt-6">
                 <Button
                   className="text-white rounded-lg px-4 py-2 text-sm"
                   style={{ backgroundColor: secondaryColor }}
+                  onClick={handleShare}
                 >
                   <Share2 className="h-4 w-4 mr-2" />
-                  Share
+                  Share Profile
                 </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-9 w-9 p-0 rounded-lg border border-gray-200">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleBlockUser} className="text-red-600 cursor-pointer">
+                      <Ban className="mr-2 h-4 w-4" />
+                      <span>Block User</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleUnblockUser} className="text-gray-600 cursor-pointer">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      <span>Unblock User</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
 
-          {/* Bottom: Stats Cards */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-gray-100 rounded-lg p-4 text-center">
               <div className="flex items-center justify-center mb-2">
                 <span className="text-xl">📋</span>
               </div>
               <p className="text-xs text-gray-600 mb-1">Active Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.filter(l => l.status === 'active').length}
+                {userListings.filter(l => l.status !== 'SOLD').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -182,16 +198,7 @@ export default function UserProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Items Sold</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.filter(l => l.status === 'sold').length}
-              </p>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center mb-2">
-                <span className="text-xl">📦</span>
-              </div>
-              <p className="text-xs text-gray-600 mb-1">Total Listings</p>
-              <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.length}
+                {userListings.filter(l => l.status === 'SOLD').length}
               </p>
             </div>
           </div>
@@ -199,7 +206,7 @@ export default function UserProfilePage() {
 
         {/* User Listings */}
         <div>
-          <h2 className="text-2xl font-bold mb-6" style={{ color: secondaryColor }}>Listings</h2>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: secondaryColor }}>{profile.fullName}'s Listings</h2>
           {userListings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {userListings.map((item) => (
@@ -210,11 +217,29 @@ export default function UserProfilePage() {
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
               <div className="text-5xl mx-auto mb-4">📦</div>
               <h3 className="text-lg font-semibold mb-2" style={{ color: secondaryColor }}>No Listings Yet</h3>
-              <p className="text-gray-600">This user hasn't created any listings.</p>
+              <p className="text-gray-600">This user hasn't posted any listings yet.</p>
             </div>
           )}
         </div>
       </div>
+      
+      {shareAlertVisible && (
+        <FloatingAlert
+          type="success" 
+          title="Successful!" 
+          message="The profile link has been copied to your clipboard!"
+          onClose={() => setShareAlertVisible(false)}
+        />
+      )}
+
+      {blockAlertVisible.visible && (
+        <FloatingAlert
+          type={blockAlertVisible.type}
+          title={blockAlertVisible.type === 'success' ? "Success" : "Error"}
+          message={blockAlertVisible.message}
+          onClose={() => setBlockAlertVisible({ ...blockAlertVisible, visible: false })}
+        />
+      )}
     </main>
   )
 }

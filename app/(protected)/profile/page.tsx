@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import FloatingAlert from "@/components/ui/floating-alert"
 
 import { useAuth } from "@/contexts/AuthContext";
 import { User, Listing, SalesResponse, PurchaseResponse } from "@/lib/types";
@@ -63,6 +64,8 @@ export default function ProfilePage() {
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
   const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
 
+  const [shareAlertVisible, setShareAlertVisible] = useState(false);
+
   useEffect(() => {
     const fetchListings = async () => {
       if (!user) {
@@ -76,13 +79,21 @@ export default function ProfilePage() {
         const listingsResponse = await api.get<Listing[]>(
           `/user/${user.id}/listings`
         );
-        setUserListings(listingsResponse.data);
+        const allListings = listingsResponse.data;
+        setUserListings(allListings);
+
+        // Calculate sold count from listings (manual mark as sold)
+        const soldListingsCount = allListings.filter(l => l.status === 'SOLD').length;
 
         // Fetch sales history
         const salesResponse = await api.get<SalesResponse>('/user/sales');
+        let transactionCount = 0;
         if (salesResponse.data && salesResponse.data.transactions) {
-          setSalesCount(salesResponse.data.transactions.length);
+          transactionCount = salesResponse.data.transactions.length;
         }
+        
+        // Use the larger of the two to account for both manual marks and actual transactions
+        setSalesCount(Math.max(soldListingsCount, transactionCount));
 
         // Fetch purchase history
         const purchasesResponse = await api.get<PurchaseResponse>('/user/purchases');
@@ -170,6 +181,26 @@ export default function ProfilePage() {
     } finally {
       setDeleteAccountLoading(false);
     }
+  };
+
+  const handleShare = () => {
+    if (!user?.id) return;
+    
+    // Construct the public profile URL
+    const profileUrl = `${window.location.origin}/profile/${user.id}`;
+    
+    if (!navigator.clipboard) {
+        alert("Clipboard functionality not supported by this browser.");
+        return;
+    }
+
+    navigator.clipboard.writeText(profileUrl)
+      .then(() => {
+        setShareAlertVisible(true);
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+      });
   };
 
   const handleDeleteListing = () => {
@@ -306,6 +337,7 @@ export default function ProfilePage() {
                 <Button
                   className="text-white rounded-lg px-4 py-2 text-sm"
                   style={{ backgroundColor: secondaryColor }}
+                  onClick={handleShare}
                 >
                   <Share2 className="h-4 w-4 mr-2" />
                   Share
@@ -322,7 +354,7 @@ export default function ProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Active Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.length}
+                {userListings.filter(l => l.status !== 'SOLD').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -340,7 +372,7 @@ export default function ProfilePage() {
               </div>
               <p className="text-xs text-gray-600 mb-1">Total Listings</p>
               <p className="text-2xl font-bold" style={{ color: secondaryColor }}>
-                {userListings.length + salesCount}
+                {userListings.filter(l => l.status !== 'SOLD').length}
               </p>
             </div>
             <div className="bg-gray-100 rounded-lg p-4 text-center">
@@ -449,9 +481,9 @@ export default function ProfilePage() {
         {/* My Listings */}
         <div>
           <h2 className="text-2xl font-bold mb-6" style={{ color: secondaryColor }}>My Listings</h2>
-          {userListings.length > 0 ? (
+          {userListings.filter(item => item.status !== 'SOLD').length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {userListings.map((item) => (
+              {userListings.filter(item => item.status !== 'SOLD').map((item) => (
                 <div key={item.id} className="relative group">
                   <ListingCard listing={item} />
                   {/* Edit/Delete Overlay */}
@@ -633,6 +665,15 @@ export default function ProfilePage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {shareAlertVisible && (
+        <FloatingAlert
+          type="success" 
+          title="Successful!" 
+          message="Your profile link has been copied to your clipboard!"
+          onClose={() => setShareAlertVisible(false)}
+        />
+      )}
     </main>
   )
 }

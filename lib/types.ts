@@ -3,12 +3,14 @@
 
 // Category type - directly from backend constants
 export type Category = 
-  |  "ELECTRONICS"
+  | "ELECTRONICS"
   | "BOOKS"
   | "FASHION"
   | "HOME"
   | "SPORTS"
   | "OTHER"
+  | "STATIONERY"
+  | "FURNITURE"
   
 
 // University type - matches backend University entity
@@ -36,6 +38,14 @@ export interface User {
   items_listed?: number
 }
 
+export interface PublicProfile {
+  fullName: string;
+  universityId: number;
+  universityName: string;
+  profilePicUrl: string | null;
+  description: string | null;
+}
+
 // Seller type - represents a User in the context of a listing
 export type Seller = Pick<User, 'id' | 'fullName' | 'university' | 'email'> & {
   // Optional display-only fields
@@ -60,10 +70,15 @@ export interface ProductListing {
   universityName: string; // From user.university.name
   images: string[]; // List of all image URLs
   imageUrl: string; // The primary image URL (first item in 'images' list)
+  sellerId?: number;
+  sellerName?: string;
 
   // OWNER ONLY fields
   favoriteCount?: number;
   visitCount?: number;
+  
+  // User specific
+  isFavourite?: boolean;
 
   // Fields needed to satisfy existing frontend logic:
   // created_by is used for the avatar/university lookup in the old mock data.
@@ -111,4 +126,41 @@ export interface SalesResponse {
 
 export interface PurchaseResponse {
   transactions: Transaction[];
+}
+
+export interface SearchRequest {
+  keyword?: string;
+  category?: Category | "All";
+  minPrice?: number;
+  maxPrice?: number;
+  universityId?: number;
+  universityName?: string;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDirection?: string;
+}
+
+export interface SearchResponse {
+  products: Listing[]; // We map ProductDTO.Response to Listing
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface CategoryResponse {
+  category: Category;
+  displayName: string;
+}
+
+export interface CampusResponse {
+  id: number;
+  name: string;
+}
+
+export interface UniversityNameResponse {
+  name: string;
 }

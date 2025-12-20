@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import ListingCard from "@/components/listing-card";
 import { useAuth } from "@/contexts/AuthContext";
-import api from "@/lib/api";
 import { Listing, Favorite } from "@/lib/types";
+import { getUserFavorites, removeFromFavorites, getListingDetailById } from "@/lib/api/listings";
 
 const primaryColor = "#72C69B";
 const secondaryColor = "#182C53";
@@ -27,15 +27,15 @@ export default function FavoritesPage() {
 
       try {
         setLoading(true);
-        const favsResponse = await api.get<Favorite[]>(`/favourites/${user.id}`);
-        const productIds = favsResponse.data.map((fav) => fav.productId);
+        const favs = await getUserFavorites();
+        const productIds = favs.map((fav) => fav.productId);
 
         if (productIds.length > 0) {
           const productPromises = productIds.map((id) =>
-            api.get<Listing>(`/listings/${id}`)
+            getListingDetailById(id.toString())
           );
-          const productResponses = await Promise.all(productPromises);
-          setFavorites(productResponses.map((res) => res.data));
+          const products = await Promise.all(productPromises);
+          setFavorites(products);
         } else {
           setFavorites([]);
         }
@@ -55,7 +55,7 @@ export default function FavoritesPage() {
     if (!user) return;
 
     try {
-      await api.delete(`/favourites/${user.id}/${productId}`);
+      await removeFromFavorites(productId);
       setFavorites((prev) => prev.filter((item) => item.id !== productId));
     } catch (err) {
       console.error("Failed to remove favorite:", err);

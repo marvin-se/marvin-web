@@ -28,12 +28,19 @@ export default function ListingCard({
   isFavorited,
   onFavoriteToggle,
 }: ListingCardProps) {
-  const [isFavorite, setIsFavorite] = useState<boolean>(!!isFavorited)
+  // Initialize with prop if provided, otherwise use listing data
+  const [isFavorite, setIsFavorite] = useState<boolean>(
+    isFavorited !== undefined ? isFavorited : !!listing.isFavourite
+  )
 
   // sync internal state when prop changes
   useEffect(() => {
-    setIsFavorite(!!isFavorited)
-  }, [isFavorited])
+    if (isFavorited !== undefined) {
+      setIsFavorite(isFavorited)
+    } else if (listing.isFavourite !== undefined) {
+      setIsFavorite(listing.isFavourite)
+    }
+  }, [isFavorited, listing.isFavourite])
 
   const [confirmOpen, setConfirmOpen] = useState(false)
 

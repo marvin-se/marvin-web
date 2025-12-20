@@ -1,8 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { useState, useMemo, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import ListingCard from "@/components/listing-card"
 import { Slider } from "@/components/ui/slider"
@@ -16,126 +15,173 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from "@/components/ui/pagination"
-import { getAllListings } from "@/lib/api/listings"; // Import the new fetch function
-import { Listing, Category } from "@/lib/types"; // Import the updated type
+import { searchListings, getCategories, getCampuses, addToFavorites, removeFromFavorites, getUserFavorites } from "@/lib/api/listings";
+import { Listing, Category, CategoryResponse, CampusResponse } from "@/lib/types";
+import api from "@/lib/api/index";
 
 const primaryColor = "#72C69B"
 
 export default function BrowsePage() {
   const searchParams = useSearchParams()
 
-  // State for fetched data and loading
-  const [allListings, setAllListings] = useState<Listing[]>([]);
+  // State for fetched data
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [campuses, setCampuses] = useState<CampusResponse[]>([]);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Filter States
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  // State for Price Range: Initialized to a wide, safe range. Will be updated after fetch.
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000])
+  const [selectedCategory, setSelectedCategory] = useState<string>("All")
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000])
   const [selectedUniversity, setSelectedUniversity] = useState("All")
   
-  // State for Pagination
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const pageSize = 12
 
-  // --- Data Fetching Effect ---
-  useEffect(() => {
-    const fetchListings = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await getAllListings();
-        setAllListings(data);
-        
-// Dynamic Price Range Initialization
-        const maxPrice = data.reduce((max: number, listing: Listing) => Math.max(max, listing.price), 0);
-        
-        // Set max price to the nearest hundred above the highest listing price, minimum 1000
-        const dynamicMax = Math.max(1000, Math.ceil(maxPrice / 100) * 100); 
-        setPriceRange([0, dynamicMax] as [number, number]); // Use explicit tuple type for setPriceRange
+  const handleFavoriteToggle = async (id: number) => {
+    const listingIndex = listings.findIndex(l => l.id === id);
+    if (listingIndex === -1) return;
+    
+    const listing = listings[listingIndex];
+    const wasFavorite = !!listing.isFavourite;
+    
+    // Optimistic update
+    const newListings = [...listings];
+    newListings[listingIndex] = { ...listing, isFavourite: !wasFavorite };
+    setListings(newListings);
 
-      } catch (e) {
-        console.error("Fetch error:", e);
-        setError("Failed to fetch listings. Please ensure the backend is running and reachable.");
-        setAllListings([]);
-      } finally {
-        setIsLoading(false);
+    try {
+        if (!wasFavorite) {
+            await addToFavorites(id);
+        } else {
+            await removeFromFavorites(id);
+        }
+    } catch (err) {
+        console.error("Failed to toggle favorite:", err);
+        // Revert
+        const revertedListings = [...listings];
+        revertedListings[listingIndex] = { ...listing, isFavourite: wasFavorite };
+        setListings(revertedListings);
+    }
+  }
+
+  // --- Initial Data Fetching (Categories & Campuses) ---
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [cats, camps] = await Promise.all([getCategories(), getCampuses()]);
+        setCategories(cats);
+        setCampuses(camps);
+      } catch (err) {
+        console.error("Failed to fetch metadata:", err);
+        // We can still proceed, just dropdowns might be empty
       }
     };
-
-    fetchListings();
-  }, []) 
+    fetchMetadata();
+  }, []);
 
   // --- URL Search Query Effect ---
   useEffect(() => {
     const query = searchParams.get("search")
     if (query !== null) {
       setSearchQuery(query)
-    } else {
-      setSearchQuery("")
     }
   }, [searchParams])
 
-  // --- Dynamic Data ---
-  const listings = allListings;
-  
-  // Categories (based on backend Category enum, converted to display string)
-  // Ensure these match the values sent back by the backend DTO if they are strings like "BOOKS"
-  const backendCategories: Category[] = [ "ELECTRONICS","BOOKS","FASHION","HOME","SPORTS","OTHER"];
-  const categories = ["All", ...backendCategories];
-  
-  // Dynamically extract universities from fetched data
-  const universities = useMemo(() => {
-    const uniqueUniversities = new Set<string>()
-    listings.forEach((listing) => {
-      if (listing.universityName) {
-        uniqueUniversities.add(listing.universityName)
-      }
-    })
-    return Array.from(uniqueUniversities).sort()
-  }, [listings])
-
-  // Determine max slider value from all listings
-  const maxPriceValue = useMemo(() => {
-    return allListings.reduce((max, listing) => Math.max(max, listing.price), 1000);
-  }, [allListings]);
-
-  // --- Filtering Logic ---
-  const filteredListings = listings.filter((listing) => {
-    const matchesSearch = listing.title.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    // Check category: Selected category is "All" OR matches the listing's category (which is a string like "BOOKS")
-    const matchesCategory = selectedCategory === "All" || listing.category === selectedCategory; 
-    
-    const matchesPrice = listing.price >= priceRange[0] && listing.price <= priceRange[1]
-    
-    // Check university name directly on the listing DTO
-    const matchesUniversity = selectedUniversity === "All" || listing.universityName === selectedUniversity
-    
-    return matchesSearch && matchesCategory && matchesPrice && matchesUniversity
-  })
-
-  // --- Pagination Logic ---
-  // Reset to page 1 whenever filters or search query change
+  // --- Listings Fetching Effect ---
   useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedUniversity, priceRange])
+    const fetchListings = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await searchListings({
+            keyword: searchQuery,
+            category: selectedCategory === "All" ? undefined : selectedCategory as Category,
+            minPrice: priceRange[0],
+            maxPrice: priceRange[1],
+            universityId: selectedUniversity === "All" ? undefined : Number(selectedUniversity),
+            page: currentPage - 1, // Backend is 0-indexed
+            size: pageSize,
+            sortBy: "createdAt",
+            sortDirection: "DESC"
+        });
 
-  const totalPages = Math.max(1, Math.ceil(filteredListings.length / pageSize))
+        // Filter out SOLD items on the client side as well, just in case backend returns them
+        let activeListings = response.products.filter(l => l.status !== 'SOLD');
 
-  const paginatedListings = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredListings.slice(start, start + pageSize)
-  }, [filteredListings, currentPage])
+        // --- CLIENT-SIDE SELLER VERIFICATION ---
+        // Since backend doesn't filter out deleted users or provide sellerName in the list,
+        // we must verify each seller exists by fetching their profile.
+        if (activeListings.length > 0) {
+            const uniqueSellerIds = Array.from(new Set(activeListings.map(l => l.sellerId).filter((id): id is number => id !== undefined)));
+            
+            const validSellerIds = new Set<number>();
+            
+            // Fetch user profiles in parallel to check existence
+            await Promise.all(uniqueSellerIds.map(async (sellerId) => {
+                try {
+                    await api.get(`/user/${sellerId}`);
+                    validSellerIds.add(sellerId);
+                } catch (err) {
+                    // User not found (404) or other error -> consider invalid/deleted
+                }
+            }));
+
+            // Filter listings to only include those with valid sellers
+            activeListings = activeListings.filter(l => l.sellerId && validSellerIds.has(l.sellerId));
+        }
+
+        // --- MERGE FAVORITES ---
+        // Backend search response might not include isFavourite flag correctly or at all.
+        // We fetch user's favorites separately and merge them.
+        try {
+            const userFavorites = await getUserFavorites();
+            const favoriteProductIds = new Set(userFavorites.map(f => f.productId));
+            
+            activeListings = activeListings.map(l => ({
+                ...l,
+                isFavourite: favoriteProductIds.has(l.id)
+            }));
+        } catch (favErr) {
+            console.warn("Failed to fetch user favorites for merging:", favErr);
+            // Continue without merging favorites if this fails
+        }
+
+        setListings(activeListings);
+        setTotalPages(response.totalPages);
+
+      } catch (e) {
+        console.error("Fetch error:", e);
+        setError("Failed to fetch listings. Please ensure the backend is running and reachable.");
+        setListings([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Debounce search query slightly to avoid too many requests
+    const timeoutId = setTimeout(() => {
+        fetchListings();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedCategory, priceRange, selectedUniversity, currentPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, priceRange, selectedUniversity]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Optional: scroll to the top of the listings grid
-    // window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // --- Render ---
   return (
     <div className="w-full min-h-screen">
       <div className="w-full pt-18 px-6 pb-12">
@@ -171,9 +217,9 @@ export default function BrowsePage() {
                   className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm focus:outline-none focus:border-gray-300"
                 >
                   <option value="All">All Categories</option>
-                  {categories.filter(c => c !== "All").map((category) => (
-                    <option key={category} value={category}>
-                      {category.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  {categories.map((cat) => (
+                    <option key={cat.category} value={cat.category}>
+                      {cat.displayName}
                     </option>
                   ))}
                 </select>
@@ -188,9 +234,8 @@ export default function BrowsePage() {
                     value={priceRange}
                     onValueChange={(val: [number, number]) => setPriceRange(val)}
                     min={0}
-                    // Use dynamic max value
-                    max={Math.ceil(maxPriceValue / 100) * 100} 
-                    step={1}
+                    max={2000} 
+                    step={10}
                     className="flex-1"
                   />
                   <span className="text-sm text-gray-600">${priceRange[1]}</span>
@@ -206,9 +251,9 @@ export default function BrowsePage() {
                   className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm focus:outline-none focus:border-gray-300"
                 >
                   <option value="All">All Universities</option>
-                  {universities.map((university) => (
-                    <option key={university} value={university}>
-                      {university}
+                  {campuses.map((campus) => (
+                    <option key={campus.id} value={campus.id.toString()}>
+                      {campus.name}
                     </option>
                   ))}
                 </select>
@@ -232,12 +277,15 @@ export default function BrowsePage() {
               <h2 className="text-2xl font-semibold mb-2 text-red-600">Connection Error</h2>
               <p className="text-gray-600">{error}</p>
             </div>
-          ) : filteredListings.length > 0 ? (
+          ) : listings.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {paginatedListings.map((listing) => (
-                  // The listing prop is now the ProductListing from the backend
-                  <ListingCard key={listing.id} listing={listing} />
+                {listings.map((listing) => (
+                  <ListingCard 
+                    key={listing.id} 
+                    listing={listing} 
+                    onFavoriteToggle={() => handleFavoriteToggle(listing.id)}
+                  />
                 ))}
               </div>
 

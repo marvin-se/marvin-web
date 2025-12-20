@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
-import { Transaction, SalesResponse, PurchaseResponse } from "@/lib/types";
+import { Transaction, SalesResponse, PurchaseResponse, Listing, User } from "@/lib/types";
 
 // A simple component to display a transaction item
 function TransactionCard({ transaction, type }: { transaction: Transaction, type: 'purchase' | 'sale' }) {
@@ -52,14 +52,39 @@ export default function PurchaseSalesPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [salesRes, purchasesRes] = await Promise.all([
+        const [salesRes, purchasesRes, listingsRes] = await Promise.all([
           api.get<SalesResponse>('/user/sales'),
-          api.get<PurchaseResponse>('/user/purchases')
+          api.get<PurchaseResponse>('/user/purchases'),
+          api.get<Listing[]>(`/user/${user.id}/listings`)
         ]);
 
+        let allSales: Transaction[] = [];
         if (salesRes.data && salesRes.data.transactions) {
-          setSales(salesRes.data.transactions);
+          allSales = [...salesRes.data.transactions];
         }
+
+        // Process manually sold listings
+        if (listingsRes.data) {
+          const soldListings = listingsRes.data.filter(l => l.status === 'SOLD');
+          
+          // Create fake transaction objects for sold listings that aren't already in sales
+          // We check by product ID to avoid duplicates if the backend eventually supports it
+          const existingProductIds = new Set(allSales.map(s => s.product.id));
+          
+          const manualSales: Transaction[] = soldListings
+            .filter(l => !existingProductIds.has(l.id))
+            .map(l => ({
+              id: -l.id, // Negative ID to avoid collision with real transaction IDs
+              buyer: { fullName: "Marked as Sold", id: 0, email: "", isActive: true, createdAt: new Date() } as User,
+              seller: user,
+              product: l,
+              createdAt: l.created_at ? l.created_at.toString() : new Date().toISOString()
+            }));
+            
+          allSales = [...allSales, ...manualSales];
+        }
+        
+        setSales(allSales);
         
         if (purchasesRes.data && purchasesRes.data.transactions) {
           setPurchases(purchasesRes.data.transactions);

@@ -8,21 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import api from "@/lib/api/index"
+import { getUniversities } from "@/lib/api/listings"
+import { UniversityNameResponse } from "@/lib/types"
 
 const brandColor = "#182C53"
 
 const chamferStyle = {
   clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px)"
 }
-
-// Universities from backend database
-const universities = [
-  "İstanbul Teknik Üniversitesi",
-  "Orta Doğu Teknik Üniversitesi",
-  "Yıldız Teknik Üniversitesi",
-  "Boğaziçi Üniversitesi",
-  "Hacettepe Üniversitesi"
-]
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -40,6 +33,9 @@ function LoginForm() {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const timerRef = useRef<number | null>(null)
   
+  // Universities state
+  const [universityList, setUniversityList] = useState<UniversityNameResponse[]>([])
+
   // Pending verification timer state
   const [pendingResendDisabled, setPendingResendDisabled] = useState(false)
   const [pendingSecondsLeft, setPendingSecondsLeft] = useState(0)
@@ -53,6 +49,19 @@ function LoginForm() {
       setActiveTab(tab)
     }
   }, [searchParams])
+
+  // Fetch universities on mount
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const data = await getUniversities();
+        setUniversityList(data);
+      } catch (err) {
+        console.error("Failed to fetch universities:", err);
+      }
+    };
+    fetchUniversities();
+  }, []);
 
   // Cleanup verification timer on unmount
   useEffect(() => {
@@ -963,8 +972,8 @@ function LoginForm() {
                         className="mt-2 w-full border border-gray-300 rounded-md px-4 py-2 bg-white"
                       >
                         <option value="">Select your university</option>
-                        {universities.map((uni) => (
-                          <option key={uni} value={uni}>{uni}</option>
+                        {universityList.map((uni) => (
+                          <option key={uni.name} value={uni.name}>{uni.name}</option>
                         ))}
                       </select>
                     </div>

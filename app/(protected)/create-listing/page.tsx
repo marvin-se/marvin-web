@@ -45,7 +45,11 @@ export default function CreateListingPage() {
   });
 
   // NOTE: Backend'deki enum adlarına uygun (örneğin Sports_Outdoors)
-  const categories = [ "ELECTRONICS", "BOOKS", "FASHION", "HOME", "SPORTS", "OTHER"]
+  const categories = [ "ELECTRONICS", "BOOKS", "FASHION", "HOME", "SPORTS", "OTHER", "STATIONERY", "FURNITURE"]
+
+  const formatCategoryName = (category: string) => {
+    return category.charAt(0) + category.slice(1).toLowerCase();
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -229,7 +233,7 @@ export default function CreateListingPage() {
                         </SelectTrigger>
                         <SelectContent>
                             {categories.map((cat) => (
-                                <SelectItem key={cat} value={cat}>{cat.replace('_', ' ')}</SelectItem>
+                                <SelectItem key={cat} value={cat}>{formatCategoryName(cat)}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
