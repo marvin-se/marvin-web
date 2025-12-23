@@ -65,6 +65,7 @@ export interface ProductListing {
   description: string;
   price: number; // BigDecimal from backend maps to number in JS
   category: Category;
+  createdAt?: string | Date;
 
   // New fields from the backend DTO
   universityName: string; // From user.university.name
@@ -74,16 +75,11 @@ export interface ProductListing {
   sellerName?: string;
 
   // OWNER ONLY fields
-  favoriteCount?: number;
+  favouriteCount?: number;
   visitCount?: number;
   
   // User specific
   isFavourite?: boolean;
-
-  // Fields needed to satisfy existing frontend logic:
-  // created_by is used for the avatar/university lookup in the old mock data.
-  // We'll use the university name as a default for the avatar initial display, 
-  // as the full user object is not available here.
   created_by: string; // We map this from 'universityName' or 'id' in the fetch function
 }
 
@@ -92,11 +88,7 @@ export interface ProductListing {
  * in components like BrowsePage.tsx and ListingCard.tsx.
  */
 export type Listing = ProductListing & {
-    // We add 'status' and 'created_at' back for any component that might rely on the old structure,
-    // assuming the backend fetch handles mapping the Product entity's status and date fields 
-    // onto the DTO's response or that they will be added to the DTO later.
     status?: 'ACTIVE' | 'SOLD'; 
-    created_at?: string | Date;
 }
 
 

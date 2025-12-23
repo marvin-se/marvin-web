@@ -20,6 +20,7 @@ interface ListingCardProps {
   from?: string
   isFavorited?: boolean
   onFavoriteToggle?: (id: number) => void
+  showFavoriteButton?: boolean
 }
 
 export default function ListingCard({
@@ -27,6 +28,7 @@ export default function ListingCard({
   from,
   isFavorited,
   onFavoriteToggle,
+  showFavoriteButton = true,
 }: ListingCardProps) {
   // Initialize with prop if provided, otherwise use listing data
   const [isFavorite, setIsFavorite] = useState<boolean>(
@@ -57,33 +59,34 @@ export default function ListingCard({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {/* Favorite Button */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              if (onFavoriteToggle) {
-                if (isFavorite) {
-                  setConfirmOpen(true);
+          {showFavoriteButton && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                if (onFavoriteToggle) {
+                  if (isFavorite) {
+                    setConfirmOpen(true);
+                  } else {
+                    onFavoriteToggle(listing.id);
+                  }
                 } else {
-                  onFavoriteToggle(listing.id);
+                  setIsFavorite(!isFavorite);
                 }
-              } else {
-                setIsFavorite(!isFavorite);
-              }
-            }}
-            className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:shadow-md transition-all hover:scale-110"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill={isFavorite ? "#ef4444" : "none"}
-              stroke={isFavorite ? "#ef4444" : "#9ca3af"}
-              strokeWidth="2"
-              className="transition-colors"
+              }}
+              className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:shadow-md transition-all hover:scale-110"
             >
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-            </svg>
-          </button>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill={isFavorite ? "#ef4444" : "none"}
+                stroke={isFavorite ? "#ef4444" : "#9ca3af"}
+                strokeWidth="2"
+                className="transition-colors"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button> )}
         </div>
 
         {/* Confirmation dialog for removing from favorites (client-only) */}

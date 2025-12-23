@@ -32,6 +32,7 @@ function LoginForm() {
   const [resendDisabled, setResendDisabled] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const timerRef = useRef<number | null>(null)
+  const [showVerifyCTA, setShowVerifyCTA] = useState(false)
   
   // Universities state
   const [universityList, setUniversityList] = useState<UniversityNameResponse[]>([])
@@ -104,6 +105,7 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setShowVerifyCTA(false)
     
     try {
       const response = await api.post('/auth/login', {
@@ -130,11 +132,14 @@ function LoginForm() {
       }
       
       // If account is not verified, show verification code input
-      if (/not verified|unverified|verify your|verification/i.test(errorMessage)) {
-        setShowPendingVerify(true)
+      const isUnverified = /not verified|unverified|verify your|verification|disabled/i.test(errorMessage);
+      if (isUnverified) {
+        setError('Your account is not verified.')
+        setShowVerifyCTA(true)
+        setVerifyEmail(email)
+        setShowPendingVerify(false)
         setPendingError(null)
         setPendingSuccess(null)
-        setError('Your account is not verified. Please enter the verification code sent to your email.')
         return
       }
       
@@ -280,7 +285,7 @@ function LoginForm() {
     setPendingError(null)
     setPendingSuccess(null)
     try {
-      await api.post('/auth/resend', null, { params: { email } })
+      await api.post('/auth/resend', { email: email })
       setPendingSuccess('New verification code sent! Please check your email.')
       setPendingCode('')
       setPendingAttempts(0)
@@ -575,7 +580,7 @@ function LoginForm() {
               {/* Tabs */}
               <div className="flex border-b border-gray-300">
                 <button
-                  onClick={() => { setActiveTab("login"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
+                  onClick={() => { setActiveTab("login"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setShowPendingVerify(false); setShowVerifyCTA(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
                   className={`flex-1 py-3 text-center font-semibold transition-colors ${
                     activeTab === "login"
                       ? `border-b-2`
@@ -589,7 +594,7 @@ function LoginForm() {
                   Login
                 </button>
                 <button
-                  onClick={() => { setActiveTab("register"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
+                  onClick={() => { setActiveTab("register"); setError(null); setSuccess(null); setShowVerifyInRegister(false); setShowPendingVerify(false); setShowVerifyCTA(false); setResendDisabled(false); if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null } }}
                   className={`flex-1 py-3 text-center font-semibold transition-colors ${
                     activeTab === "register"
                       ? `border-b-2`
@@ -628,6 +633,20 @@ function LoginForm() {
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
                       <span className="font-medium">Error:</span> {error}
+                    </div>
+                  )}
+
+                  {showVerifyCTA && !showPendingVerify && (
+                    <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm">
+                      <span>You haven’t verified your account.</span>
+                      <Button
+                        type="button"
+                        onClick={() => { setShowPendingVerify(true); setShowVerifyCTA(false); setPendingError(null); setPendingSuccess(null); setSuccess(null); setError(null); handleResendPending();}}
+                        className="font-semibold"
+                        style={{ backgroundColor: brandColor }}
+                      >
+                        Verify your account
+                      </Button>
                     </div>
                   )}
 

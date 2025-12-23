@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -238,7 +238,7 @@ export default function ListingDetailPage() {
     }
     
     return (
-      <Link href={`/messages?recipient=${listing.created_by}`} className="flex-1">
+        <Link href={`/messages?seller=${listing.sellerId}`} className="flex-1">
         <Button className="w-full text-white font-semibold py-3 rounded-lg" style={{ backgroundColor: primaryColor }}>
           Message Seller
         </Button>
@@ -311,13 +311,17 @@ export default function ListingDetailPage() {
                 <div className="flex justify-between">
                 <p className="text-gray-600">Posted</p>
                 <p className="font-medium">
-                    {listing.created_at 
-                        ? new Date(listing.created_at).toLocaleDateString()
+                    {listing.createdAt 
+                        ? new Date(listing.createdAt).toLocaleDateString()
                         : 'N/A'}
                 </p>
             </div>
-            <div className="flex justify-between"><p className="text-gray-600">Favorites</p><p className="font-medium">{listing.favoriteCount ?? 0}</p></div>
-            <div className="flex justify-between"><p className="text-gray-600">Visits</p><p className="font-medium">{listing.visitCount ?? 0}</p></div>
+            {isOwner && (
+              <>
+              <div className="flex justify-between"><p className="text-gray-600">Favorites</p><p className="font-medium">{listing.favouriteCount ?? 0}</p></div>
+              <div className="flex justify-between"><p className="text-gray-600">Visits</p><p className="font-medium">{listing.visitCount ?? 0}</p></div>
+              </>
+            )}
               </div>
             </div>
 
@@ -343,12 +347,24 @@ export default function ListingDetailPage() {
               {renderActionButtons()}
               {showSecondaryActions && (
                 <>
-                  <Button className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor }} onClick={handleToggleFavorite}>
-                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-                  </Button>
-                  <Button className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg" style={{ backgroundColor: primaryColor, color: 'white' }} onClick={handleShare}>
-                    <Share2 className="h-4 w-4" />
-                  </Button>
+                {!isOwner && (
+                        <Button 
+                          className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" 
+                          style={{ backgroundColor: primaryColor }} 
+                          onClick={handleToggleFavorite}
+                        >
+                          <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                        </Button>
+                      )}
+                      
+                      {/* Share button usually stays for everyone, including the owner */}
+                      <Button 
+                        className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg" 
+                        style={{ backgroundColor: primaryColor, color: 'white' }} 
+                        onClick={handleShare}
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
                 </>
               )}
             </div>

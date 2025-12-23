@@ -14,12 +14,14 @@ interface ProductDTOResponse {
     universityName: string;
     images: string[];
     imageUrl?: string; // <-- ADDED: The backend is setting this field.
-    favoriteCount?: number; // <-- ADDED: These are optional fields.
+    favouriteCount?: number; // <-- ADDED: These are optional fields.
     visitCount?: number;    // <-- ADDED
     sellerId?: number;
     sellerName?: string;
     status?: string; // <-- ADDED: Status field from backend
     isFavourite?: boolean;
+    createdAt: string;
+
 }
 
 // --- Listing API Functions ---
@@ -39,12 +41,13 @@ export async function getAllListings(): Promise<Listing[]> {
       images: item.images || [],
       imageUrl: item.imageUrl || "/placeholder.svg", 
       created_by: item.universityName || 'Unknown Seller',
-      favoriteCount: item.favoriteCount,
+      favouriteCount: item.favouriteCount,
       visitCount: item.visitCount,
       sellerId: item.sellerId,
       sellerName: item.sellerName,
       status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE', // Map status
       isFavourite: item.isFavourite,
+      createdAt: item.createdAt,
     }));
 
     return listings;
@@ -80,7 +83,7 @@ export async function getListingDetailById(id: string): Promise<Listing> {
       // Assuming 'created_by' is used for user identification/avatar:
       created_by: item.universityName || 'Unknown Seller', 
 
-      favoriteCount: item.favoriteCount,
+      favouriteCount: item.favouriteCount,
       visitCount: item.visitCount,
       sellerId: item.sellerId,
       sellerName: item.sellerName,
@@ -175,7 +178,7 @@ export async function searchListings(params: SearchRequest): Promise<SearchRespo
       images: item.images || [],
       imageUrl: item.imageUrl || "/placeholder.svg", 
       created_by: item.universityName || 'Unknown Seller',
-      favoriteCount: item.favoriteCount,
+      favouriteCount: item.favouriteCount,
       visitCount: item.visitCount,
       sellerId: item.sellerId,
       sellerName: item.sellerName,
@@ -211,7 +214,7 @@ export async function filterListings(params: SearchRequest): Promise<SearchRespo
         images: item.images || [],
         imageUrl: item.imageUrl || "/placeholder.svg", 
         created_by: item.universityName || 'Unknown Seller',
-        favoriteCount: item.favoriteCount,
+        favouriteCount: item.favouriteCount,
         visitCount: item.visitCount,
         sellerId: item.sellerId,
         sellerName: item.sellerName,
@@ -270,32 +273,15 @@ export interface FavouriteDTO {
 }
 
 export async function addToFavorites(productId: number): Promise<void> {
-  const url = "/favourites/add";
-  try {
-    await api.post(url, { productId });
-  } catch (error) {
-    console.error(`Error adding product ${productId} to favorites:`, error);
-    throw error;
-  }
+  await api.post("/favourites/add", { productId });
 }
 
 export async function removeFromFavorites(productId: number): Promise<void> {
-  const url = `/favourites/${productId}`;
-  try {
-    await api.delete(url);
-  } catch (error) {
-    console.error(`Error removing product ${productId} from favorites:`, error);
-    throw error;
-  }
+  await api.delete(`/favourites/${productId}`);
 }
 
+
 export async function getUserFavorites(): Promise<FavouriteDTO[]> {
-  const url = "/favourites/getAll";
-  try {
-    const response = await api.get<FavouriteDTO[]>(url);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching user favorites:", error);
-    throw error;
-  }
+  const response = await api.get("/favourites/getAll");
+  return response.data;
 }

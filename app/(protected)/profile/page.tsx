@@ -485,7 +485,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {userListings.filter(item => item.status !== 'SOLD').map((item) => (
                 <div key={item.id} className="relative group">
-                  <ListingCard listing={item} />
+                  <ListingCard listing={item} showFavoriteButton={false}/>
                   {/* Edit/Delete Overlay */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex gap-2">

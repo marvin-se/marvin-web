@@ -17,11 +17,14 @@ import {
 } from "@/components/ui/pagination"
 import { searchListings, getCategories, getCampuses, addToFavorites, removeFromFavorites, getUserFavorites } from "@/lib/api/listings";
 import { Listing, Category, CategoryResponse, CampusResponse } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext"
+
 import api from "@/lib/api/index";
 
 const primaryColor = "#72C69B"
 
 export default function BrowsePage() {
+  const { user } = useAuth();
   const searchParams = useSearchParams()
 
   // State for fetched data
@@ -236,7 +239,7 @@ export default function BrowsePage() {
                     min={0}
                     max={2000} 
                     step={10}
-                    className="flex-1"
+                    className="flex-1 [&_[role=slider]]:bg-[#72C69B] [&_[role=slider]]:border-[#72C69B] [&_.bg-primary]:bg-[#72C69B]"
                   />
                   <span className="text-sm text-gray-600">${priceRange[1]}</span>
                 </div>
@@ -280,13 +283,20 @@ export default function BrowsePage() {
           ) : listings.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {listings.map((listing) => (
+                {listings.map((listing) => {
+                // Logic to check ownership
+                const isOwner = user?.id === listing.sellerId;
+
+                return (
                   <ListingCard 
                     key={listing.id} 
                     listing={listing} 
                     onFavoriteToggle={() => handleFavoriteToggle(listing.id)}
+                    // 3. Pass the result to the prop
+                    showFavoriteButton={!isOwner} 
                   />
-                ))}
+                );
+              })}
               </div>
 
               {totalPages > 1 && (
