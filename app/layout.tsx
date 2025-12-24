@@ -23,7 +23,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased flex flex-col min-h-screen`} style={{ backgroundColor: '#F5F6F8' }}>
+      {/*<body className={`font-sans antialiased flex flex-col min-h-screen`} style={{ backgroundColor: '#F5F6F8' }}></body>*/}
+      <body className={`font-sans antialiased flex flex-col min-h-screen`}>
         <AuthProvider>
           <Navigation />
           <main className="flex-grow">{children}</main>

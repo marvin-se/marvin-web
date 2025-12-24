@@ -8,12 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const brandColor = "#182C53";
 
-// Köşeleri kesmek için gerekli poligon şekli (Kesik Köşe / Chamfered)
-// Bu değerleri (20px) değiştirerek kesiğin büyüklüğünü ayarlayabilirsin.
-const chamferStyle = {
-  clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px), 0 20px)"
-};
-
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -44,50 +38,46 @@ export default function Home() {
       <div className="relative z-10 min-h-screen flex flex-col">
         
         {/* Hero Section */}
-                {/* Hero Section */}
         <section className="h-screen flex flex-col items-center justify-center px-4 text-center">
           <div className="flex flex-col items-center space-y-4 max-w-3xl">
             
-            {/* CampusTrade Ana Başlık Kutusu (KESİK KÖŞELİ) */}
-            <div className="drop-shadow-lg filter"> {/* Gölgeyi dışarıya alıyoruz */}
+            {/* CampusTrade Ana Başlık Kutusu */}
+            <div className="drop-shadow-lg filter">
+              {/* TEK KUTU YAPISI: İç içe div yerine tek div ve border kullandık */}
               <div 
-                className="p-[3px]" // Border kalınlığı
-                style={{ backgroundColor: brandColor, ...chamferStyle }}
+                className="px-8 py-4 md:px-12 md:py-6 flex items-center justify-center rounded-full border-[3px]"
+                style={{ 
+                  backgroundColor: "#FFF5F5", 
+                  borderColor: brandColor 
+                }}
               >
-                <div 
-                  className="px-8 py-4 md:px-12 md:py-6 flex items-center justify-center"
-                  style={{ ...chamferStyle, backgroundColor: "#ffffff" }} // Changed from white to #FFF5F5
-                >
-                  <h1 
-                  className="text-4xl md:text-6xl font-bold font-serif tracking-wide"
+                <h1 
+                  className="text-4xl md:text-6xl font-bold font-sans tracking-wide"
                   style={{ color: brandColor }}
-                  >
-                  CampusTrade
-                  </h1>
-                </div>
-              </div>
-            </div>
-
-            {/* Alt Başlık Kutusu (KESİK KÖŞELİ) */}
-            <div className="drop-shadow-md filter mt-2">
-              <div 
-                className="p-[2px]" 
-                style={{ backgroundColor: `${brandColor}80`, ...chamferStyle }}
-              >
-                 <div 
-                    className="bg-white px-6 py-2 md:px-10 md:py-3 flex items-center justify-center"
-                    style={{ ...chamferStyle, backgroundColor: "#ffffff" }}
                 >
-                  <p 
-                    className="text-sm md:text-xl font-medium"
-                    style={{ color: brandColor }}
-                  >
-                    Your campus marketplace for buying and selling used items
-                  </p>
-                </div>
+                  CampusTrade
+                </h1>
               </div>
             </div>
 
+            {/* Alt Başlık Kutusu */}
+            <div className="drop-shadow-md filter mt-2">
+               {/* TEK KUTU YAPISI */}
+               <div 
+                  className="px-6 py-2 md:px-10 md:py-3 flex items-center justify-center rounded-full border-[2px]"
+                  style={{ 
+                    backgroundColor: "#ffffff",
+                    borderColor: `${brandColor}80` // %50 opaklık için hex kodu
+                  }}
+              >
+                <p 
+                  className="text-sm md:text-xl font-medium"
+                  style={{ color: brandColor }}
+                >
+                  Your campus marketplace for buying and selling used items
+                </p>
+              </div>
+            </div>
 
           </div>
         </section>

@@ -566,16 +566,13 @@ function LoginForm() {
 
       {/* CONTENT CARD */}
       <div className="relative z-10 w-full max-w-md">
-        {/* Chamfered Card Outer Border */}
         <div className="drop-shadow-2xl filter">
-          <div
-            className="p-[3px]"
-            style={{ backgroundColor: brandColor, ...chamferStyle }}
-          >
             {/* Card Inner Content */}
             <div
-              className="p-8 space-y-6"
-              style={{ ...chamferStyle, backgroundColor: "rgba(255,255,255,0.95)", backdropFilter: "blur(10px)" }}
+              className="p-8 space-y-6 rounded-[2.5rem] border-[3px] bg-white/95 backdrop-blur-sm"
+              style={{ 
+                borderColor: brandColor, // Kenarlık rengi
+              }}
             >
               {/* Tabs */}
               <div className="flex border-b border-gray-300">
@@ -1070,7 +1067,6 @@ function LoginForm() {
 
               
             </div>
-          </div>
         </div>
       </div>
     </div>

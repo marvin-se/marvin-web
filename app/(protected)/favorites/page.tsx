@@ -67,62 +67,65 @@ export default function FavoritesPage() {
   const emptyFavorites = favorites.length === 0;
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="mb-8">
-          <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: secondaryColor }}
-          >
-            My Favorites
-          </h1>
-          <p className="text-muted-foreground">
-            Items you've saved for later
-          </p>
+    <div className="w-full min-h-screen">
+      <div className="w-full pt-18 px-6 pb-12">
+        
+        {/* Header Section */}
+        <div 
+          className="mb-8 py-9 px-6 rounded-lg"
+          style={{ backgroundColor: "#F5F6F8" }}
+        >
+          <h1 className="text-4xl font-bold text-[#182C53] mb-2">My Favorites</h1>
+          <p className="text-gray-500 text-sm">Items you've saved for later</p>
         </div>
 
-        {loading ? (
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-           {[...Array(3)].map((_, i) => (
-             <ListingCard.Skeleton key={i} />
-           ))}
-         </div>
-        ) : error ? (
-            <div className="text-center py-20">
-                <p className="text-red-500">{error}</p>
+        {/* Listings Container - Same style as Browse page */}
+        <div className="bg-[#F5F6F8] rounded-xl border border-gray-200 p-8 mb-8">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <ListingCard.Skeleton key={i} />
+              ))}
             </div>
-        ) : emptyFavorites ? (
-          <div className="text-center py-20">
-            <div className="flex justify-center mb-6">
-              <div className="p-6 bg-card rounded-full text-5xl">❤️</div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <h2 className="text-2xl font-semibold mb-2 text-red-600">Error</h2>
+              <p className="text-gray-600">{error}</p>
             </div>
-            <h2 className="text-2xl font-bold mb-2">No Favorites Yet</h2>
-            <p className="text-muted-foreground mb-6">
-              Start exploring and save items you like
-            </p>
-            <Link href="/browse">
-              <Button
-                className="text-white rounded-lg"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Browse Marketplace
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {favorites.map((item) => (
-              <ListingCard
-                key={item.id}
-                listing={item}
-                from="favorites"
-                isFavorited={true}
-                onFavoriteToggle={handleRemoveFavorite}
-              />
-            ))}
-          </div>
-        )}
+          ) : emptyFavorites ? (
+            <div className="text-center py-16">
+              <div className="flex justify-center mb-6">
+                <div className="p-6 bg-white rounded-full text-5xl">❤️</div>
+              </div>
+              <h2 className="text-2xl font-semibold mb-2 text-gray-800">No Favorites Yet</h2>
+              <p className="text-gray-600 mb-6">
+                Start exploring and save items you like
+              </p>
+              <Link href="/browse">
+                <Button
+                  className="text-white rounded-lg"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Browse Marketplace
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {favorites.map((item) => (
+                <ListingCard
+                  key={item.id}
+                  listing={item}
+                  from="favorites"
+                  isFavorited={true}
+                  onFavoriteToggle={handleRemoveFavorite}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        
       </div>
-    </main>
+    </div>
   );
 }

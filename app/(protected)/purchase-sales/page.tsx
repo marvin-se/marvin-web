@@ -78,7 +78,7 @@ export default function PurchaseSalesPage() {
               buyer: { fullName: "Marked as Sold", id: 0, email: "", isActive: true, createdAt: new Date() } as User,
               seller: user,
               product: l,
-              createdAt: l.created_at ? l.created_at.toString() : new Date().toISOString()
+              createdAt: l.createdAt ? l.createdAt.toString() : new Date().toISOString()
             }));
             
           allSales = [...allSales, ...manualSales];
@@ -108,61 +108,71 @@ export default function PurchaseSalesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F6F8]">
-      <div className="container mx-auto py-10 pt-24 md:pt-32">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold">Purchase & Sales</h1>
-          <p className="text-muted-foreground mt-2">
-            Track all your transactions in one place.
-          </p>
-        </div>
+    <div className="min-h-screen pt-12">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        
+        {/* Unified Container */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <h1 className="text-2xl font-bold text-[#182C53]">Purchase & Sales</h1>
+            <p className="text-gray-500 mt-1">
+              Track all your transactions in one place.
+            </p>
+          </div>
 
-        <Tabs defaultValue="purchases" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger
-              value="purchases"
-              className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
-            >
-              My Purchases ({purchases.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="sales"
-              className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
-            >
-              My Sales ({sales.length})
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="purchases">
-            {purchases.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
-                {purchases.map((transaction) => (
-                  <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
-                    <TransactionCard transaction={transaction} type="purchase" />
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                No purchases found.
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="sales">
-            {sales.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
-                {sales.map((transaction) => (
-                  <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
-                    <TransactionCard transaction={transaction} type="sale" />
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                No sales found.
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+          {/* Tabs Content */}
+          <div className="p-6">
+            <Tabs defaultValue="purchases" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger
+                  value="purchases"
+                  className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
+                >
+                  My Purchases ({purchases.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="sales"
+                  className="data-[state=active]:bg-[#72C69B] data-[state=active]:text-white data-[state=inactive]:bg-gray-100 data-[state=inactive]:text-gray-600"
+                >
+                  My Sales ({sales.length})
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="purchases">
+                {purchases.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {purchases.map((transaction) => (
+                      <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
+                        <TransactionCard transaction={transaction} type="purchase" />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    No purchases found.
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="sales">
+                {sales.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {sales.map((transaction) => (
+                      <Link href={`/listing/${transaction.product.id}?from=purchase-sales`} key={transaction.id}>
+                        <TransactionCard transaction={transaction} type="sale" />
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    No sales found.
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+        </div>
       </div>
     </div>
   );

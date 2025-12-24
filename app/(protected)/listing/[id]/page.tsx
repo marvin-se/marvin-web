@@ -349,7 +349,7 @@ export default function ListingDetailPage() {
                 <>
                 {!isOwner && (
                         <Button 
-                          className="flex-shrink-0 text-white font-semibold py-3 px-4 rounded-lg" 
+                          className="shrink-0 text-white font-semibold py-3 px-4 rounded-lg" 
                           style={{ backgroundColor: primaryColor }} 
                           onClick={handleToggleFavorite}
                         >
@@ -359,7 +359,7 @@ export default function ListingDetailPage() {
                       
                       {/* Share button usually stays for everyone, including the owner */}
                       <Button 
-                        className="flex-shrink-0 font-semibold py-3 px-4 rounded-lg" 
+                        className="shrink-0 font-semibold py-3 px-4 rounded-lg" 
                         style={{ backgroundColor: primaryColor, color: 'white' }} 
                         onClick={handleShare}
                       >
