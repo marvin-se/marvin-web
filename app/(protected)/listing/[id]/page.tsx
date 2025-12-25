@@ -5,9 +5,10 @@ import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Listing } from "@/lib/types"
-import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2 } from "lucide-react"
+import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2, Ban, MoreHorizontal, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { getListingDetailById, deleteListing, addToFavorites, removeFromFavorites } from "@/lib/api/listings" 
+import api from "@/lib/api"
 import FloatingAlert from "@/components/ui/floating-alert";
 import {
   Carousel,
@@ -16,6 +17,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const primaryColor = "#72C69B"
 
@@ -42,8 +49,10 @@ export default function ListingDetailPage() {
 
   // UI State 
   const [isFavorite, setIsFavorite] = useState(false); 
+  const [isBlocked, setIsBlocked] = useState(false);
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
   const [deleteAlert, setDeleteAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
+  const [blockAlertVisible, setBlockAlertVisible] = useState<{visible: boolean, message: string, type: 'success' | 'error'}>({ visible: false, message: '', type: 'success' });
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -91,11 +100,62 @@ export default function ListingDetailPage() {
   }, [from]);
   const { href: backHref, label: backLabel } = getBackLink;
 
+  const handleBlockSeller = async () => {
+    if (!listing?.sellerId) return;
+    try {
+      await api.post(`/user/${listing.sellerId}/block`);
+      setIsBlocked(true);
+      setBlockAlertVisible({ visible: true, message: "Seller has been blocked successfully.", type: 'success' });
+    } catch (err: any) {
+      console.error("Failed to block seller:", err);
+      if (err.response?.data?.message === "This user is already blocked.") {
+         setIsBlocked(true);
+         setBlockAlertVisible({ visible: true, message: "Seller was already blocked.", type: 'success' });
+      } else {
+         setBlockAlertVisible({ visible: true, message: "Failed to block seller.", type: 'error' });
+      }
+    }
+  };
+
+  const handleUnblockSeller = async () => {
+    if (!listing?.sellerId) return;
+    try {
+      await api.delete(`/user/${listing.sellerId}/unblock`);
+      setIsBlocked(false);
+      setBlockAlertVisible({ visible: true, message: "Seller has been unblocked successfully.", type: 'success' });
+    } catch (err) {
+      console.error("Failed to unblock seller:", err);
+      setBlockAlertVisible({ visible: true, message: "Failed to unblock seller.", type: 'error' });
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <h1 className="text-xl text-gray-600">Loading Listing Details...</h1>
+      </div>
+    );
+  }
+
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center p-8 bg-gray-50 rounded-xl border border-gray-200 shadow-sm max-w-md">
+          <Ban className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">You have blocked this seller</h1>
+          <p className="text-gray-600 mb-6">You cannot view this listing while the seller is blocked.</p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Button 
+              onClick={handleUnblockSeller} 
+              className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+            >
+              Unblock Seller
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -314,26 +374,56 @@ export default function ListingDetailPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between"><p className="text-gray-600">Category</p><p className="font-medium">{listingCategory}</p></div>
                 <div className="flex justify-between"><p className="text-gray-600">University</p><p className="font-medium">{listing.universityName || 'N/A'}</p></div>
+                {listing.createdAt && (
+                  <div className="flex justify-between">
+                    <p className="text-gray-600">Posted</p>
+                    <p className="font-medium">
+                      {new Date(listing.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Seller Information */}
-            <Link href={isOwner ? '/profile' : `/profile/${listing.sellerId || listing.created_by}`} className="block"> 
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
-                <img 
-                  src={isValidImageUrl(sellerProfile?.profilePicUrl) ? sellerProfile.profilePicUrl : "/young-student.avif"} 
-                  alt={listing.sellerName || sellerProfile?.fullName || "Seller"} 
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {listing.sellerName || sellerProfile?.fullName || "Unknown Seller"}
-                    {isOwner && <span className="ml-2 text-xs text-gray-500">(You)</span>}
-                  </p>
-                  <p className="text-xs text-gray-600">{listing.universityName || 'University'}</p>
+            <div className="flex items-center gap-2">
+              <Link href={isOwner ? '/profile' : `/profile/${listing.sellerId || listing.created_by}`} className="block flex-1"> 
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
+                  <img 
+                    src={isValidImageUrl(sellerProfile?.profilePicUrl) ? sellerProfile.profilePicUrl : "/young-student.avif"} 
+                    alt={listing.sellerName || sellerProfile?.fullName || "Seller"} 
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {listing.sellerName || sellerProfile?.fullName || "Unknown Seller"}
+                      {isOwner && <span className="ml-2 text-xs text-gray-500">(You)</span>}
+                    </p>
+                    <p className="text-xs text-gray-600">{listing.universityName || 'University'}</p>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              {!isOwner && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-full min-h-[88px] w-12 p-0 rounded-lg border border-gray-200 hover:bg-gray-50">
+                      <MoreHorizontal className="h-5 w-5 text-gray-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleBlockSeller} className="text-red-600 cursor-pointer">
+                      <Ban className="mr-2 h-4 w-4" />
+                      <span>Block Seller</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
             
             <div className="flex gap-2">
               {renderActionButtons()}
@@ -384,6 +474,15 @@ export default function ListingDetailPage() {
           title={deleteAlert.type === 'success' ? "Deleted" : "Error"}
           message={deleteAlert.message}
           onClose={() => setDeleteAlert({ ...deleteAlert, visible: false })}
+        />
+      )}
+
+      {blockAlertVisible.visible && (
+        <FloatingAlert
+          type={blockAlertVisible.type}
+          title={blockAlertVisible.type === 'success' ? "Success" : "Error"}
+          message={blockAlertVisible.message}
+          onClose={() => setBlockAlertVisible({ ...blockAlertVisible, visible: false })}
         />
       )}
 

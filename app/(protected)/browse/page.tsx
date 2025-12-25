@@ -117,36 +117,6 @@ export default function BrowsePage() {
         // Filter out SOLD items on the client side as well, just in case backend returns them
         let activeListings = response.products.filter(l => l.status !== 'SOLD');
 
-        // --- CLIENT-SIDE SELLER VERIFICATION ---
-        // Since backend doesn't filter out deleted users or provide sellerName in the list,
-        // we must verify each seller exists by fetching their profile.
-        if (activeListings.length > 0) {
-            const uniqueSellerIds = Array.from(new Set(activeListings.map(l => l.sellerId).filter((id): id is number => id !== undefined)));
-            
-            const validSellerIds = new Set<number>();
-            
-            // Fetch user profiles in parallel to check existence
-            await Promise.all(uniqueSellerIds.map(async (sellerId) => {
-                try {
-                    await api.get(`/user/${sellerId}`);
-                    validSellerIds.add(sellerId);
-                } catch (err) {
-                    // Only exclude if 404 (User Not Found)
-                    // If network error or 500, we should probably give benefit of doubt or handle differently
-                    // @ts-ignore
-                    if (err.response?.status === 404) {
-                        // User definitely doesn't exist
-                    } else {
-                        // Some other error, assume valid to avoid hiding legitimate listings during glitches
-                        validSellerIds.add(sellerId); 
-                    }
-                }
-            }));
-
-            // Filter listings to only include those with valid sellers
-            activeListings = activeListings.filter(l => l.sellerId && validSellerIds.has(l.sellerId));
-        }
-
         // --- MERGE FAVORITES ---
         // Backend search response might not include isFavourite flag correctly or at all.
         // We fetch user's favorites separately and merge them.

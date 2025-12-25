@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import ListingCard from "@/components/listing-card"
-import { Share2 } from "lucide-react"
+import { Share2, Camera } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { User, Listing, SalesResponse, PurchaseResponse } from "@/lib/types";
 import api from "@/lib/api";
 import { getUserListings } from "@/lib/api/listings";
+import { presignProfilePicture, saveProfilePicture, getUserProfilePicture } from "@/lib/api/user";
+import ImageCropper from "@/components/image-cropper";
 
 const primaryColor = "#72C69B";
 const secondaryColor = "#182C53";
@@ -45,6 +47,11 @@ export default function ProfilePage() {
   const [purchasesCount, setPurchasesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayProfilePic, setDisplayProfilePic] = useState<string | null>(null);
+
+  // Cropper State
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState<string | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -66,6 +73,88 @@ export default function ProfilePage() {
   const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
 
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      setCropperImageSrc(reader.result as string);
+      setCropperOpen(true);
+    });
+    reader.readAsDataURL(file);
+    
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setCropperOpen(false);
+    await handleProfilePictureUpload(croppedBlob);
+  };
+
+  const handleProfilePictureUpload = async (fileBlob: Blob) => {
+    try {
+        setIsLoading(true);
+        console.log("Starting profile picture upload. Blob size:", fileBlob.size, "Type:", fileBlob.type);
+
+        // 1. Presign
+        // Cropped image is usually jpeg, but ensure we have a type
+        const contentType = fileBlob.type || 'image/jpeg';
+        console.log("Presigning with content type:", contentType);
+        
+        const { key, uploadUrl } = await presignProfilePicture(contentType);
+        console.log("Presign successful. Key:", key);
+
+        // 2. Upload to S3 (via Proxy)
+        console.log("Uploading to S3 via proxy...");
+        const uploadRes = await fetch('/api/s3-proxy', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': contentType,
+                'X-Upload-Url': uploadUrl
+            },
+            body: fileBlob
+        });
+
+        if (!uploadRes.ok) {
+            const errorText = await uploadRes.text();
+            console.error("S3 Upload failed:", uploadRes.status, errorText);
+            throw new Error(`Failed to upload image to storage: ${uploadRes.status}`);
+        }
+        console.log("S3 Upload successful");
+
+        // 3. Save Key to Backend
+        console.log("Saving key to backend...");
+        await saveProfilePicture(key);
+        console.log("Key saved to backend");
+
+        // 4. Refresh User Data
+        await refreshUser(); 
+        
+        // 5. Refresh Profile Picture URL
+        if (user?.id) {
+            const newPicUrl = await getUserProfilePicture(user.id);
+            setDisplayProfilePic(newPicUrl);
+        }
+        
+        setSuccessMessage("Profile picture updated successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (err) {
+        console.error("Failed to update profile picture:", err);
+        alert(`Failed to update profile picture. Please try again. (${err instanceof Error ? err.message : "Unknown error"})`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -97,6 +186,16 @@ export default function ProfilePage() {
         const purchasesResponse = await api.get<PurchaseResponse>('/user/purchases');
         if (purchasesResponse.data && purchasesResponse.data.transactions) {
           setPurchasesCount(purchasesResponse.data.transactions.length);
+        }
+
+        // Fetch Profile Picture URL
+        try {
+            if (user?.id) {
+                const picUrl = await getUserProfilePicture(user.id);
+                setDisplayProfilePic(picUrl);
+            }
+        } catch (e) {
+            console.warn("Failed to fetch profile picture url", e);
         }
 
       } catch (err) {
@@ -279,11 +378,27 @@ export default function ProfilePage() {
           {/* Top: Avatar and Profile Info */}
           <div className="flex gap-8 mb-8">
             {/* Avatar */}
-            <img
-              src={profile?.profilePicUrl || "/young-student.avif"}
-              alt={profile?.fullName || "User Avatar"}
-              className="w-32 h-32 rounded-full object-cover flex-shrink-0"
-            />
+            <div className="relative group">
+              <img
+                src={displayProfilePic || profile?.profilePicUrl || "/young-student.avif"}
+                alt={profile?.fullName || "User Avatar"}
+                className="w-32 h-32 rounded-full object-cover flex-shrink-0"
+              />
+              <label 
+                htmlFor="profile-pic-upload" 
+                className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                <Camera className="text-white h-8 w-8" />
+              </label>
+              <input 
+                id="profile-pic-upload" 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleFileSelect}
+                disabled={isLoading}
+              />
+            </div>
             
             {/* Profile Details */}
             <div className="flex-1">
@@ -672,6 +787,22 @@ export default function ProfilePage() {
           onClose={() => setShareAlertVisible(false)}
         />
       )}
+
+      {successMessage && (
+        <FloatingAlert
+          type="success"
+          title="Success!"
+          message={successMessage}
+          onClose={() => setSuccessMessage(null)}
+        />
+      )}
+
+      <ImageCropper
+        open={cropperOpen}
+        imageSrc={cropperImageSrc}
+        onClose={() => setCropperOpen(false)}
+        onCropComplete={handleCropComplete}
+      />
     </main>
   )
 }
