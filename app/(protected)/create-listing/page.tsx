@@ -244,7 +244,7 @@ export default function CreateListingPage() {
                     {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="price">Price ($) <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="price">Price (TL) <span className="text-red-500">*</span></Label>
                     <Input
                         id="price"
                         name="price"

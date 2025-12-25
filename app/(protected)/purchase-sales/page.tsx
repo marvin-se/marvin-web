@@ -30,7 +30,7 @@ function TransactionCard({ transaction, type }: { transaction: Transaction, type
             : `To: ${transaction.buyer.fullName}`} 
         </CardDescription>
         <div className="mt-2 flex items-center justify-end">
-          <p className="text-lg font-semibold">${transaction.product.price}</p>
+          <p className="text-lg font-semibold">₺{transaction.product.price}</p>
         </div>
       </CardContent>
       <CardFooter className="p-4 bg-gray-50 border-t">

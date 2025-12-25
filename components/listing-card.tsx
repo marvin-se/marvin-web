@@ -133,7 +133,7 @@ export default function ListingCard({
         {/* Content */}
         <div className="p-4">
           <h3 className="font-medium text-gray-800 mb-1 line-clamp-1 text-base">{listing.title}</h3>
-          <p className="text-xl font-semibold mb-3" style={{ color: '#182C53' }}>${listing.price}</p>
+          <p className="text-xl font-semibold mb-3" style={{ color: '#182C53' }}>₺{listing.price}</p>
           {/* remove the seller info for now
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">

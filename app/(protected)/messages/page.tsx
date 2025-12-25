@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import api from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
-import { markAsSold, getListingDetailById } from "@/lib/api/listings"
+import { markAsSold, getListingDetailById, getListingImages } from "@/lib/api/listings"
 import { AlertTriangle, CheckCircle } from "lucide-react"
 
 const primaryColor = "#72C69B"
@@ -47,6 +47,7 @@ interface ConversationDTO {
   userId: number
   lastMessage: LastMessageDTO | null
   messages?: MessageDTO[]
+  imageUrl?: string  // Product image URL from backend
 }
 
 export default function MessagesPage() {
@@ -133,25 +134,57 @@ export default function MessagesPage() {
           }
 
           setCurrentMessages((prev) => {
-            // Guard: avoid duplicates by id
+            // Guard: avoid duplicates by id OR by same content+sender within 5 seconds
             if (prev.some(m => m.id === normalized.id)) return prev
+            
+            // Also check for optimistic messages with same content from same sender (within 5 sec)
+            const isDuplicateContent = prev.some(m => 
+              m.senderId === normalized.senderId && 
+              m.content === normalized.content &&
+              Math.abs(new Date(m.sentAt).getTime() - new Date(normalized.sentAt).getTime()) < 5000
+            )
+            if (isDuplicateContent) return prev
+            
             const next = [...prev, normalized]
 
-            // Update lastMessage for the active conversation in the list
-            setConversations((prevConvos) => prevConvos.map(c => (
-              c.id === selectedChatId
-                ? {
-                    ...c,
-                    lastMessage: {
-                      id: normalized.id,
-                      senderId: normalized.senderId,
-                      content: normalized.content,
-                      isRead: false,
-                      sentAt: normalized.sentAt,
-                    },
-                  }
-                : c
-            )))
+            // Update lastMessage AND persist messages for the active conversation
+            setConversations((prevConvos) => prevConvos.map(c => {
+              if (c.id !== selectedChatId) return c
+              
+              // Append to existing messages array (with dedupe)
+              const existingMessages = c.messages || []
+              const alreadyExists = existingMessages.some(m => m.id === normalized.id)
+              const alreadyHasContent = existingMessages.some(m => 
+                m.senderId === normalized.senderId && 
+                m.content === normalized.content &&
+                Math.abs(new Date(m.sentAt).getTime() - new Date(normalized.sentAt).getTime()) < 5000
+              )
+              if (alreadyExists || alreadyHasContent) {
+                // Just update lastMessage, don't add duplicate
+                return {
+                  ...c,
+                  lastMessage: {
+                    id: normalized.id,
+                    senderId: normalized.senderId,
+                    content: normalized.content,
+                    isRead: false,
+                    sentAt: normalized.sentAt,
+                  },
+                }
+              }
+              
+              return {
+                ...c,
+                messages: [...existingMessages, normalized],
+                lastMessage: {
+                  id: normalized.id,
+                  senderId: normalized.senderId,
+                  content: normalized.content,
+                  isRead: false,
+                  sentAt: normalized.sentAt,
+                },
+              }
+            }))
 
             return next
           })
@@ -214,6 +247,28 @@ export default function MessagesPage() {
         const payload = response.data as any
         fetchedChats = Array.isArray(payload) ? payload : (payload?.conversations || [])
 
+        // 2.5 Fetch presigned image URLs for each conversation's product
+        const chatsWithImages = await Promise.all(
+          fetchedChats.map(async (chat) => {
+            // If imageUrl is already a full URL (presigned), use it
+            // Otherwise, fetch the presigned URL from the product images endpoint
+            if (chat.product?.id && (!chat.imageUrl || !chat.imageUrl.startsWith('http'))) {
+              try {
+                const images = await getListingImages(chat.product.id)
+                return {
+                  ...chat,
+                  imageUrl: images.length > 0 ? images[0].url : "/placeholder.svg"
+                }
+              } catch (e) {
+                console.warn(`Failed to fetch images for product ${chat.product.id}`)
+                return { ...chat, imageUrl: "/placeholder.svg" }
+              }
+            }
+            return chat
+          })
+        )
+        fetchedChats = chatsWithImages
+
         // 3. Handle "Message Seller" Logic (Phantom Chat)
         if (sellerFromParam) {
           const targetSellerId = parseInt(sellerFromParam)
@@ -229,6 +284,19 @@ export default function MessagesPage() {
             setSelectedChatId(existingChat.id)
           } else {
             // Chat DOES NOT exist -> Create "Phantom" chat for UI
+            // First fetch the product image
+            let phantomImageUrl = "/placeholder.svg"
+            if (targetProductId > 0) {
+              try {
+                const images = await getListingImages(targetProductId)
+                if (images.length > 0) {
+                  phantomImageUrl = images[0].url
+                }
+              } catch (e) {
+                console.warn("Failed to fetch image for phantom chat product")
+              }
+            }
+            
             const phantomChat: ConversationDTO = {
               id: -999, // Negative ID signals "Not saved in DB yet"
               userId: targetSellerId,
@@ -237,7 +305,8 @@ export default function MessagesPage() {
                 id: targetProductId, 
                 title: productNameParam || "New Inquiry" 
               },
-              lastMessage: null
+              lastMessage: null,
+              imageUrl: phantomImageUrl
             }
             
             // Add phantom chat to top of list
@@ -319,9 +388,11 @@ export default function MessagesPage() {
   const handleMarkAsSold = async () => {
     if (!activeChat || isMarkingSold) return
     
+    // Use conversation ID (not product ID) - backend expects conversation ID
+    // to find both buyer and seller from the conversation participants
     setIsMarkingSold(true)
     try {
-      await markAsSold(activeChat.product.id.toString())
+      await markAsSold(activeChat.id.toString())
       setIsProductSold(true)
     } catch (error) {
       console.error("Failed to mark item as sold:", error)
@@ -354,6 +425,39 @@ export default function MessagesPage() {
       })
 
       console.log("Message sent via WebSocket:", payload)
+      
+      // Optimistically add the sent message to UI and conversation state
+      const optimisticMessage: MessageDTO = {
+        id: Date.now(), // Temporary ID, will be replaced by server echo
+        senderId: user?.id ?? 0,
+        receiverId: receiverId,
+        content: payload.content,
+        sentAt: new Date().toISOString(),
+        read: false,
+      }
+      
+      setCurrentMessages(prev => {
+        if (prev.some(m => m.content === optimisticMessage.content && m.senderId === optimisticMessage.senderId)) return prev
+        return [...prev, optimisticMessage]
+      })
+      
+      // Persist in conversation state so it survives navigation
+      setConversations(prev => prev.map(c => {
+        if (c.id !== selectedChatId) return c
+        const existingMessages = c.messages || []
+        return {
+          ...c,
+          messages: [...existingMessages, optimisticMessage],
+          lastMessage: {
+            id: optimisticMessage.id,
+            senderId: optimisticMessage.senderId,
+            content: optimisticMessage.content,
+            isRead: false,
+            sentAt: optimisticMessage.sentAt,
+          },
+        }
+      }))
+      
       setMessageInput("")
 
       // If this is a phantom chat, fetch the real conversation after sending
@@ -435,9 +539,9 @@ export default function MessagesPage() {
                   >
                     <div className="flex gap-3">
                       <img
-                        src={"https://github.com/shadcn.png"}
-                        alt="User"
-                        className="w-10 h-10 rounded-full bg-gray-300"
+                        src={chat.imageUrl || "/placeholder.svg"}
+                        alt="Product"
+                        className="w-10 h-10 rounded-full bg-gray-300 object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -472,9 +576,9 @@ export default function MessagesPage() {
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <img
-                    src={"https://github.com/shadcn.png"}
-                    alt="User"
-                    className="w-10 h-10 rounded-full bg-gray-300"
+                    src={activeChat.imageUrl || "/placeholder.svg"}
+                    alt="Product"
+                    className="w-10 h-10 rounded-full bg-gray-300 object-cover"
                   />
                   <div>
                     <p className="font-semibold" style={{ color: secondaryColor }}>

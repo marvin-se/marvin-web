@@ -43,11 +43,17 @@ function LoginForm() {
   const pendingTimerRef = useRef<number | null>(null)
   const [pendingAttempts, setPendingAttempts] = useState(0)
   
-  // Set initial tab from URL parameter
+  // Set initial tab from URL parameter and handle session expiration
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'register') {
       setActiveTab(tab)
+    }
+    
+    // Check if redirected due to session expiration
+    const expired = searchParams.get('expired')
+    if (expired === 'true') {
+      setError('Your session has expired. Please log in again.')
     }
   }, [searchParams])
 

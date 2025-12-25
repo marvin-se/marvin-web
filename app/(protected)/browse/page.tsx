@@ -240,7 +240,7 @@ export default function BrowsePage() {
               <div className="flex-1 max-w-sm">
                 <Label className="block text-sm font-medium text-gray-700 mb-2">Price Range</Label>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600">${priceRange[0]}</span>
+                  <span className="text-sm text-gray-600">₺{priceRange[0]}</span>
                   <Slider
                     value={priceRange}
                     onValueChange={(val: [number, number]) => setPriceRange(val)}
@@ -249,7 +249,7 @@ export default function BrowsePage() {
                     step={10}
                     className="flex-1 [&_[role=slider]]:bg-[#72C69B] [&_[role=slider]]:border-[#72C69B] [&_.bg-primary]:bg-[#72C69B]"
                   />
-                  <span className="text-sm text-gray-600">${priceRange[1]}</span>
+                  <span className="text-sm text-gray-600">₺{priceRange[1]}</span>
                 </div>
               </div>
 

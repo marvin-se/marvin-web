@@ -19,6 +19,12 @@ import {
 
 const primaryColor = "#72C69B"
 
+// Helper function to check if a URL is a valid image URL (presigned or direct)
+function isValidImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/');
+}
+
 export default function ListingDetailPage() {
   // --- ROUTER & AUTH HOOKS ---
   const params = useParams();
@@ -299,7 +305,7 @@ export default function ListingDetailPage() {
             
             {showSecondaryActions && (
               <p className="text-3xl font-bold" style={{ color: primaryColor }}>
-                ${listing.price}
+                ₺{listing.price}
               </p>
             )}
 
@@ -315,7 +321,7 @@ export default function ListingDetailPage() {
             <Link href={isOwner ? '/profile' : `/profile/${listing.sellerId || listing.created_by}`} className="block"> 
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
                 <img 
-                  src={sellerProfile?.profilePicUrl || "/young-student.avif"} 
+                  src={isValidImageUrl(sellerProfile?.profilePicUrl) ? sellerProfile.profilePicUrl : "/young-student.avif"} 
                   alt={listing.sellerName || sellerProfile?.fullName || "Seller"} 
                   className="w-14 h-14 rounded-full object-cover"
                 />
