@@ -9,6 +9,7 @@ import { PublicProfile, Listing } from "@/lib/types"
 import { Share2, MoreHorizontal, Ban, ShieldCheck } from "lucide-react"
 import api from "@/lib/api"
 import { getUserProfilePicture } from "@/lib/api/user"
+import { getUserListings } from "@/lib/api/listings"
 import FloatingAlert from "@/components/ui/floating-alert"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -45,8 +46,8 @@ export default function UserProfilePage() {
       setProfile(profileRes.data);
 
       // Fetch user listings
-      const listingsRes = await api.get<Listing[]>(`/user/${userId}/listings`);
-      setUserListings(listingsRes.data);
+      const listings = await getUserListings(userId);
+      setUserListings(listings);
 
       // Fetch profile picture
       try {

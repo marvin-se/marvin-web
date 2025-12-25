@@ -15,12 +15,31 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CircleUser, Heart, MessageSquare, LogOut, ArrowLeftRight } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { getUserProfilePicture } from "@/lib/api/user"
 
 export default function Navigation() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const showAuthButtons = !pathname.startsWith('/auth');
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfilePic = async () => {
+      if (user?.id) {
+        try {
+          const url = await getUserProfilePicture(user.id);
+          setProfilePic(url);
+        } catch (error) {
+          console.error("Failed to fetch nav profile pic", error);
+        }
+      } else {
+        setProfilePic(null);
+      }
+    };
+    
+    fetchProfilePic();
+  }, [user?.id]);
   
   // Dynamically set the logo link based on the current path
   const logoHref = pathname.startsWith('/auth') ? '/' : '/browse';
@@ -55,9 +74,9 @@ export default function Navigation() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="secondary" className="relative h-8 w-8 rounded-full">
+                <Button variant="secondary" className="relative h-8 w-8 rounded-full overflow-hidden">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={undefined} alt={`@${user.fullName}`} />
+                    <AvatarImage src={profilePic || undefined} alt={`@${user.fullName}`} className="object-cover" />
                     <AvatarFallback>{user.fullName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
