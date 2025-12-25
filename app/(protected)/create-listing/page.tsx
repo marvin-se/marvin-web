@@ -32,7 +32,8 @@ export default function CreateListingPage() {
     price: "",
     description: "",
   })
-  const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   
@@ -71,14 +72,17 @@ export default function CreateListingPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
-      // NOTE: Burası geçici URL oluşturur. Gerçek projede resim yükleme servisi (S3, Cloudinary) kullanılmalıdır.
-      const newImages = Array.from(files).map((file) => URL.createObjectURL(file))
-      setUploadedImages((prev) => [...prev, ...newImages])
+      const newFiles = Array.from(files)
+      const newPreviews = newFiles.map((file) => URL.createObjectURL(file))
+      
+      setUploadedFiles((prev) => [...prev, ...newFiles])
+      setPreviewUrls((prev) => [...prev, ...newPreviews])
     }
   }
 
   const removeImage = (index: number) => {
-    setUploadedImages((prev) => prev.filter((_, i) => i !== index))
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const validateForm = () => {
@@ -92,7 +96,7 @@ export default function CreateListingPage() {
     else if (priceNumber <= 0) newErrors.price = "Price must be greater than zero"
 
     if (!formData.description.trim()) newErrors.description = "Description is required"
-    if (uploadedImages.length === 0) newErrors.images = "At least one photo is required"
+    if (uploadedFiles.length === 0) newErrors.images = "At least one photo is required"
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -121,7 +125,7 @@ export default function CreateListingPage() {
       category: formData.category.toUpperCase().replace(/\s/g, '_'), 
       description: formData.description,
       price: Number(formData.price), 
-      images: uploadedImages, 
+      files: uploadedFiles, 
     }
 
     try {
@@ -177,7 +181,7 @@ export default function CreateListingPage() {
             Photos <span className="text-red-500">*</span>
           </Label>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-4">
-            {uploadedImages.map((image, index) => (
+            {previewUrls.map((image, index) => (
               <div key={index} className="relative group">
                 <img src={image} alt={`Uploaded image ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
                 <button

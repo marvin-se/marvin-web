@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import { getUserListings, getListingImages } from "@/lib/api/listings";
 import { Transaction, SalesResponse, PurchaseResponse, Listing, User } from "@/lib/types";
 
 // A simple component to display a transaction item
@@ -52,20 +53,43 @@ export default function PurchaseSalesPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [salesRes, purchasesRes, listingsRes] = await Promise.all([
+        const [salesRes, purchasesRes, listings] = await Promise.all([
           api.get<SalesResponse>('/user/sales'),
           api.get<PurchaseResponse>('/user/purchases'),
-          api.get<Listing[]>(`/user/${user.id}/listings`)
+          getUserListings(user.id)
         ]);
+
+        // Helper to enrich transactions with presigned images
+        const enrichTransactions = async (transactions: Transaction[]) => {
+            return Promise.all(transactions.map(async (tx) => {
+                try {
+                    const realListingId = tx.product.id;
+                    const images = await getListingImages(realListingId);
+                    const imageUrls = images.map(img => img.url);
+                    
+                    return {
+                        ...tx,
+                        product: {
+                            ...tx.product,
+                            images: imageUrls,
+                            imageUrl: imageUrls.length > 0 ? imageUrls[0] : "/placeholder.svg"
+                        }
+                    };
+                } catch (e) {
+                    console.warn(`Failed to fetch images for transaction ${tx.id}`, e);
+                    return tx;
+                }
+            }));
+        };
 
         let allSales: Transaction[] = [];
         if (salesRes.data && salesRes.data.transactions) {
-          allSales = [...salesRes.data.transactions];
+          allSales = await enrichTransactions(salesRes.data.transactions);
         }
 
         // Process manually sold listings
-        if (listingsRes.data) {
-          const soldListings = listingsRes.data.filter(l => l.status === 'SOLD');
+        if (listings) {
+          const soldListings = listings.filter(l => l.status === 'SOLD');
           
           // Create fake transaction objects for sold listings that aren't already in sales
           // We check by product ID to avoid duplicates if the backend eventually supports it
@@ -87,7 +111,8 @@ export default function PurchaseSalesPage() {
         setSales(allSales);
         
         if (purchasesRes.data && purchasesRes.data.transactions) {
-          setPurchases(purchasesRes.data.transactions);
+          const enrichedPurchases = await enrichTransactions(purchasesRes.data.transactions);
+          setPurchases(enrichedPurchases);
         }
       } catch (error) {
         console.error("Failed to fetch transactions:", error);

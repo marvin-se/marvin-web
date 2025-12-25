@@ -131,7 +131,15 @@ export default function BrowsePage() {
                     await api.get(`/user/${sellerId}`);
                     validSellerIds.add(sellerId);
                 } catch (err) {
-                    // User not found (404) or other error -> consider invalid/deleted
+                    // Only exclude if 404 (User Not Found)
+                    // If network error or 500, we should probably give benefit of doubt or handle differently
+                    // @ts-ignore
+                    if (err.response?.status === 404) {
+                        // User definitely doesn't exist
+                    } else {
+                        // Some other error, assume valid to avoid hiding legitimate listings during glitches
+                        validSellerIds.add(sellerId); 
+                    }
                 }
             }));
 
@@ -300,7 +308,7 @@ export default function BrowsePage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="mt-12 flex justify-center">
+                <div className="mt-12 flex flex-col items-center gap-4">
                   <Pagination>
                     <PaginationContent className="gap-1">
                       <PaginationItem>
@@ -337,8 +345,23 @@ export default function BrowsePage() {
           ) : (
             // No Results State
             <div className="text-center py-16">
-              <h2 className="text-2xl font-semibold mb-2 text-gray-800">No Results Found</h2>
-              <p className="text-gray-600">Try adjusting your filter criteria.</p>
+              <div className="text-6xl mb-4">🔍</div>
+              <h2 className="text-2xl font-semibold mb-2 text-gray-800">No Listings Found</h2>
+              <p className="text-gray-600 max-w-md mx-auto">
+                {currentPage > 1 
+                  ? "Listings on this page are currently unavailable (sold or removed)." 
+                  : "We couldn't find any listings matching your criteria. Try adjusting your filters."}
+              </p>
+              {currentPage > 1 && (
+                 <div className="mt-6">
+                    <button 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                        Go to Previous Page
+                    </button>
+                 </div>
+              )}
             </div>
           )}
         </div>

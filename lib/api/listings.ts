@@ -31,23 +31,36 @@ export async function getAllListings(): Promise<Listing[]> {
     const response: AxiosResponse<ProductDTOResponse[]> = await api.get(url);
     
     // DTO Mapping Logic (as provided before)
-    const listings: Listing[] = response.data.map((item: ProductDTOResponse) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      price: item.price, 
-      category: item.category as Listing['category'], 
-      universityName: item.universityName,
-      images: item.images || [],
-      imageUrl: item.imageUrl || "/placeholder.svg", 
-      created_by: item.universityName || 'Unknown Seller',
-      favouriteCount: item.favouriteCount,
-      visitCount: item.visitCount,
-      sellerId: item.sellerId,
-      sellerName: item.sellerName,
-      status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE', // Map status
-      isFavourite: item.isFavourite,
-      createdAt: item.createdAt,
+    const listings: Listing[] = await Promise.all(response.data.map(async (item: ProductDTOResponse) => {
+      // Fetch presigned URLs for images
+      let imageUrls: string[] = [];
+      try {
+        const imageResponse = await getListingImages(item.id);
+        imageUrls = imageResponse.map(img => img.url);
+      } catch (e) {
+        console.warn(`Failed to fetch images for listing ${item.id}`, e);
+        // Fallback to placeholder or raw keys if fetch fails (though raw keys won't work for private bucket)
+        imageUrls = [];
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: item.price, 
+        category: item.category as Listing['category'], 
+        universityName: item.universityName,
+        images: imageUrls,
+        imageUrl: (imageUrls.length > 0) ? imageUrls[0] : "/placeholder.svg", 
+        created_by: item.universityName || 'Unknown Seller',
+        favouriteCount: item.favouriteCount,
+        visitCount: item.visitCount,
+        sellerId: item.sellerId,
+        sellerName: item.sellerName,
+        status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE', // Map status
+        isFavourite: item.isFavourite,
+        createdAt: item.createdAt,
+      };
     }));
 
     return listings;
@@ -70,6 +83,16 @@ export async function getListingDetailById(id: string): Promise<Listing> {
 
     const item = response.data;
 
+    // Fetch presigned URLs for images
+    let imageUrls: string[] = [];
+    try {
+      const imageResponse = await getListingImages(item.id);
+      imageUrls = imageResponse.map(img => img.url);
+    } catch (e) {
+      console.warn(`Failed to fetch images for listing ${item.id}`, e);
+      imageUrls = [];
+    }
+
     // Map the backend DTO structure to the frontend Listing structure
     const listing: Listing = {
       id: item.id,
@@ -78,8 +101,8 @@ export async function getListingDetailById(id: string): Promise<Listing> {
       price: item.price, 
       category: item.category as Listing['category'],
       universityName: item.universityName,
-      images: item.images || [],
-      imageUrl: item.imageUrl || "/placeholder.svg", 
+      images: imageUrls,
+      imageUrl: (imageUrls.length > 0) ? imageUrls[0] : "/placeholder.svg", 
       // Assuming 'created_by' is used for user identification/avatar:
       created_by: item.universityName || 'Unknown Seller', 
 
@@ -168,22 +191,35 @@ export async function searchListings(params: SearchRequest): Promise<SearchRespo
     
     const rawResponse = response.data as unknown as { products: ProductDTOResponse[], totalElements: number, totalPages: number, currentPage: number, pageSize: number, hasNext: boolean, hasPrevious: boolean };
     
-    const mappedProducts: Listing[] = rawResponse.products.map((item: ProductDTOResponse) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      price: item.price, 
-      category: item.category as Listing['category'], 
-      universityName: item.universityName,
-      images: item.images || [],
-      imageUrl: item.imageUrl || "/placeholder.svg", 
-      created_by: item.universityName || 'Unknown Seller',
-      favouriteCount: item.favouriteCount,
-      visitCount: item.visitCount,
-      sellerId: item.sellerId,
-      sellerName: item.sellerName,
-      status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE',
-      isFavourite: item.isFavourite,
+    const mappedProducts: Listing[] = await Promise.all(rawResponse.products.map(async (item: ProductDTOResponse) => {
+      // Fetch presigned URLs for images
+      let imageUrls: string[] = [];
+      try {
+        const imageResponse = await getListingImages(item.id);
+        imageUrls = imageResponse.map(img => img.url);
+      } catch (e) {
+        console.warn(`Failed to fetch images for listing ${item.id}`, e);
+        imageUrls = [];
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: item.price, 
+        category: item.category as Listing['category'], 
+        universityName: item.universityName,
+        images: imageUrls,
+        imageUrl: (imageUrls.length > 0) ? imageUrls[0] : "/placeholder.svg", 
+        created_by: item.universityName || 'Unknown Seller',
+        favouriteCount: item.favouriteCount,
+        visitCount: item.visitCount,
+        sellerId: item.sellerId,
+        sellerName: item.sellerName,
+        status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE',
+        isFavourite: item.isFavourite,
+        createdAt: item.createdAt,
+      };
     }));
 
     return {
@@ -204,22 +240,34 @@ export async function filterListings(params: SearchRequest): Promise<SearchRespo
       
       const rawResponse = response.data as unknown as { products: ProductDTOResponse[], totalElements: number, totalPages: number, currentPage: number, pageSize: number, hasNext: boolean, hasPrevious: boolean };
       
-      const mappedProducts: Listing[] = rawResponse.products.map((item: ProductDTOResponse) => ({
+    const mappedProducts: Listing[] = await Promise.all(rawResponse.products.map(async (item: ProductDTOResponse) => {
+      // Fetch presigned URLs for images
+      let imageUrls: string[] = [];
+      try {
+        const imageResponse = await getListingImages(item.id);
+        imageUrls = imageResponse.map(img => img.url);
+      } catch (e) {
+        console.warn(`Failed to fetch images for listing ${item.id}`, e);
+        imageUrls = [];
+      }
+
+      return {
         id: item.id,
         title: item.title,
         description: item.description,
         price: item.price, 
         category: item.category as Listing['category'], 
         universityName: item.universityName,
-        images: item.images || [],
-        imageUrl: item.imageUrl || "/placeholder.svg", 
+        images: imageUrls,
+        imageUrl: (imageUrls.length > 0) ? imageUrls[0] : "/placeholder.svg", 
         created_by: item.universityName || 'Unknown Seller',
         favouriteCount: item.favouriteCount,
         visitCount: item.visitCount,
         sellerId: item.sellerId,
         sellerName: item.sellerName,
         status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE',
-      isFavourite: item.isFavourite,
+        isFavourite: item.isFavourite,
+      };
     }));
   
     return {
@@ -282,6 +330,115 @@ export async function removeFromFavorites(productId: number): Promise<void> {
 
 
 export async function getUserFavorites(): Promise<FavouriteDTO[]> {
-  const response = await api.get("/favourites/getAll");
+  const response = await api.get<FavouriteDTO[]>("/favourites/getAll");
   return response.data;
+}
+
+/**
+ * Fetches all listings for a specific user.
+ */
+export async function getUserListings(userId: number | string): Promise<Listing[]> {
+  const url = `/user/${userId}/listings`;
+  try {
+    const response = await api.get<ProductDTOResponse[]>(url);
+    
+    const listings: Listing[] = await Promise.all(response.data.map(async (item: ProductDTOResponse) => {
+      // Fetch presigned URLs for images
+      let imageUrls: string[] = [];
+      try {
+        const imageResponse = await getListingImages(item.id);
+        imageUrls = imageResponse.map(img => img.url);
+      } catch (e) {
+        console.warn(`Failed to fetch images for listing ${item.id}`, e);
+        imageUrls = [];
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: item.price, 
+        category: item.category as Listing['category'], 
+        universityName: item.universityName,
+        images: imageUrls,
+        imageUrl: (imageUrls.length > 0) ? imageUrls[0] : "/placeholder.svg", 
+        created_by: item.universityName || 'Unknown Seller',
+        favouriteCount: item.favouriteCount,
+        visitCount: item.visitCount,
+        sellerId: item.sellerId,
+        sellerName: item.sellerName,
+        status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE',
+        isFavourite: item.isFavourite,
+        createdAt: item.createdAt,
+      };
+    }));
+
+    return listings;
+  } catch (error) {
+    console.error(`Error fetching listings for user ${userId}:`, error);
+    throw new Error("Failed to fetch user listings.");
+  }
+}
+
+// --- Image Management Endpoints ---
+
+export interface PresignImageRequest {
+    fileName: string;
+    contentType: string;
+}
+
+export interface PresignedImage {
+    key: string;
+    uploadUrl: string;
+}
+
+export interface PresignResponse {
+    images: PresignedImage[];
+}
+
+export interface ImageResponse {
+    key: string;
+    url: string;
+}
+
+/**
+ * Generates presigned URLs for uploading images.
+ */
+export async function presignImages(listingId: number, images: PresignImageRequest[]): Promise<PresignedImage[]> {
+    const url = `/listings/${listingId}/images/presign`;
+    const response = await api.post<PresignResponse>(url, { images });
+    return response.data.images;
+}
+
+/**
+ * Attaches uploaded image keys to the listing.
+ */
+export async function attachImages(listingId: number, imageKeys: string[]): Promise<void> {
+    const url = `/listings/${listingId}/images`;
+    await api.post(url, { imageKeys });
+}
+
+/**
+ * Publishes the listing (makes it visible).
+ */
+export async function publishListing(listingId: number): Promise<void> {
+    const url = `/listings/${listingId}/publish`;
+    await api.put(url);
+}
+
+/**
+ * Deletes a specific image from a listing.
+ */
+export async function deleteListingImage(listingId: number, imageKey: string): Promise<void> {
+    const url = `/listings/${listingId}/images`;
+    await api.delete(url, { params: { imageKey } });
+}
+
+/**
+ * Gets all images for a listing.
+ */
+export async function getListingImages(listingId: number): Promise<ImageResponse[]> {
+    const url = `/listings/${listingId}/images`;
+    const response = await api.get<{ images: ImageResponse[] }>(url);
+    return response.data.images;
 }

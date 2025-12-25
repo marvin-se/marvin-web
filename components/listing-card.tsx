@@ -45,6 +45,11 @@ export default function ListingCard({
   }, [isFavorited, listing.isFavourite])
 
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [imgSrc, setImgSrc] = useState(listing.images?.[0] || "/placeholder.svg")
+
+  useEffect(() => {
+    setImgSrc(listing.images?.[0] || "/placeholder.svg")
+  }, [listing.images])
 
   const href = from ? `/listing/${listing.id}?from=${encodeURIComponent(from)}` : `/listing/${listing.id}`
 
@@ -54,7 +59,8 @@ export default function ListingCard({
         {/* Image Container */}
         <div className="relative h-64 bg-gray-100 overflow-hidden">
           <img
-            src={listing.images?.[0] || "/placeholder.svg"}
+            src={imgSrc}
+            onError={() => setImgSrc("/placeholder.svg")}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

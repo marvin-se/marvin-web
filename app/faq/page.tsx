@@ -21,7 +21,7 @@ export default function FaqPage() {
     },
     {
       question: "What should I do if I have a problem with a transaction?",
-      answer: "If you encounter any issues, please contact our support team immediately through the contact form. While we are not a party to transactions, we will do our best to mediate and resolve disputes.",
+      answer: "If you encounter any issues, please reach out to our support team at mustafasaydam585@gmail.com. While we are not a party to transactions, we will do our best to mediate and resolve disputes.",
     },
     {
       question: "Can I sell anything on CampusTrade?",

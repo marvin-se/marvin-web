@@ -31,6 +31,7 @@ import FloatingAlert from "@/components/ui/floating-alert"
 import { useAuth } from "@/contexts/AuthContext";
 import { User, Listing, SalesResponse, PurchaseResponse } from "@/lib/types";
 import api from "@/lib/api";
+import { getUserListings } from "@/lib/api/listings";
 
 const primaryColor = "#72C69B";
 const secondaryColor = "#182C53";
@@ -76,10 +77,7 @@ export default function ProfilePage() {
       setError(null);
       try {
         // Fetch listings
-        const listingsResponse = await api.get<Listing[]>(
-          `/user/${user.id}/listings`
-        );
-        const allListings = listingsResponse.data;
+        const allListings = await getUserListings(user.id);
         setUserListings(allListings);
 
         // Calculate sold count from listings (manual mark as sold)

@@ -8,9 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import FloatingAlert from "@/components/ui/floating-alert"
-import { getListingDetailById, updateListing } from "@/lib/api/listings"
-import { Listing } from "@/lib/types"
-import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { getListingDetailById, updateListing, presignImages, attachImages, deleteListingImage } from "@/lib/api/listings"
+import { ArrowLeft, Save, Loader2, X } from "lucide-react"
 
 const primaryColor = "#72C69B"
 const secondaryColor = "#182C53"
@@ -22,18 +21,17 @@ export default function EditListingPage() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState<{
-    title: string
-    price: string
-    description: string
-    images: string[]
-  }>({
-    title: "",
-    price: "",
-    description: "",
-    images: [],
-  })
   
+  // Form State
+  const [title, setTitle] = useState("")
+  const [price, setPrice] = useState("")
+  const [description, setDescription] = useState("")
+  
+  // Image State
+  const [existingImages, setExistingImages] = useState<string[]>([]) // URLs of images already on server
+  const [newFiles, setNewFiles] = useState<File[]>([]) // New files selected for upload
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]) // Previews for new files
+
   const [alert, setAlert] = useState<{
     visible: boolean
     type: 'success' | 'error'
@@ -45,12 +43,10 @@ export default function EditListingPage() {
       if (!id) return
       try {
         const listing = await getListingDetailById(id)
-        setFormData({
-          title: listing.title,
-          price: listing.price.toString(),
-          description: listing.description,
-          images: listing.images || [],
-        })
+        setTitle(listing.title)
+        setPrice(listing.price.toString())
+        setDescription(listing.description)
+        setExistingImages(listing.images || [])
       } catch (error) {
         console.error("Failed to fetch listing:", error)
         setAlert({
@@ -65,26 +61,57 @@ export default function EditListingPage() {
     fetchListing()
   }, [id])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      // Note: In a real app, you would upload these to a server.
-      // Here we just create local URLs for preview/demo.
-      const newImages = Array.from(files).map((file) => URL.createObjectURL(file))
-      setFormData((prev) => ({ ...prev, images: [...prev.images, ...newImages] }))
+    if (files && files.length > 0) {
+      const newFileArray = Array.from(files)
+      setNewFiles(prev => [...prev, ...newFileArray])
+      
+      // Create preview URLs
+      const newPreviews = newFileArray.map(file => URL.createObjectURL(file))
+      setPreviewUrls(prev => [...prev, ...newPreviews])
     }
   }
 
-  const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
+  const removeExistingImage = async (index: number) => {
+    const imageUrl = existingImages[index];
+    
+    // Optimistically remove from UI
+    const updatedImages = [...existingImages];
+    updatedImages.splice(index, 1);
+    setExistingImages(updatedImages);
+
+    // Extract key from URL to delete from server
+    try {
+        const urlObj = new URL(imageUrl);
+        let key = urlObj.pathname;
+        if (key.startsWith('/')) key = key.substring(1);
+        
+        await deleteListingImage(parseInt(id), key);
+    } catch (err) {
+        console.error("Failed to delete image from server:", err);
+        setAlert({
+            visible: true,
+            type: 'error',
+            message: "Failed to delete image. Please try again."
+        });
+        // Revert
+        const revertedImages = [...updatedImages];
+        revertedImages.splice(index, 0, imageUrl);
+        setExistingImages(revertedImages);
+    }
+  }
+
+  const removeNewFile = (index: number) => {
+    const updatedFiles = [...newFiles];
+    updatedFiles.splice(index, 1);
+    setNewFiles(updatedFiles);
+
+    const updatedPreviews = [...previewUrls];
+    // Revoke the URL to avoid memory leaks
+    URL.revokeObjectURL(updatedPreviews[index]);
+    updatedPreviews.splice(index, 1);
+    setPreviewUrls(updatedPreviews);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,12 +119,40 @@ export default function EditListingPage() {
     setIsSaving(true)
 
     try {
+      // 1. Update Metadata
       await updateListing(id, {
-        title: formData.title,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        images: formData.images,
+        title,
+        description,
+        price: parseFloat(price),
       })
+
+      // 2. Handle New Image Uploads
+      if (newFiles.length > 0) {
+        // A. Presign
+        const presignRequests = newFiles.map(file => ({
+            fileName: file.name,
+            contentType: file.type || 'application/octet-stream'
+        }));
+        
+        const presignedImages = await presignImages(parseInt(id), presignRequests);
+
+        // B. Upload to S3 (via Proxy)
+        await Promise.all(presignedImages.map(async (img, index) => {
+            const file = newFiles[index];
+            await fetch('/api/s3-proxy', {
+                method: 'PUT',
+                headers: {
+                    'X-Upload-Url': img.uploadUrl,
+                    'Content-Type': file.type || 'application/octet-stream'
+                },
+                body: file
+            });
+        }));
+
+        // C. Attach Keys to Listing
+        const keysToAttach = presignedImages.map(img => img.key);
+        await attachImages(parseInt(id), keysToAttach);
+      }
 
       setAlert({
         visible: true,
@@ -151,8 +206,8 @@ export default function EditListingPage() {
               <Input
                 id="title"
                 name="title"
-                value={formData.title}
-                onChange={handleInputChange}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 required
                 maxLength={100}
               />
@@ -167,8 +222,8 @@ export default function EditListingPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.price}
-                onChange={handleInputChange}
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
                 required
               />
             </div>
@@ -179,8 +234,8 @@ export default function EditListingPage() {
               <Textarea
                 id="description"
                 name="description"
-                value={formData.description}
-                onChange={handleInputChange}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 rows={5}
                 maxLength={500}
               />
@@ -190,52 +245,87 @@ export default function EditListingPage() {
             <div className="space-y-4">
               <Label>Photos</Label>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                {formData.images.map((image, index) => (
-                  <div key={index} className="relative group aspect-square">
+                {/* Existing Images */}
+                {existingImages.map((image, index) => (
+                  <div key={`existing-${index}`} className="relative group aspect-square">
                     <img
                       src={image}
-                      alt={`Listing ${index + 1}`}
+                      alt={`Existing ${index + 1}`}
                       className="w-full h-full object-cover rounded-lg border"
                     />
                     <button
                       type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                      onClick={() => removeExistingImage(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      ×
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
-                <label className="border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors aspect-square">
-                  <span className="text-2xl mb-1">+</span>
-                  <span className="text-xs text-gray-500">Add Photo</span>
+
+                {/* New Preview Images */}
+                {previewUrls.map((url, index) => (
+                  <div key={`new-${index}`} className="relative group aspect-square">
+                    <img
+                      src={url}
+                      alt={`New ${index + 1}`}
+                      className="w-full h-full object-cover rounded-lg border opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg pointer-events-none">
+                        <span className="text-white text-xs font-bold bg-black/50 px-2 py-1 rounded">New</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeNewFile(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Upload Button */}
+                <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg
+                      className="w-8 h-8 mb-2 text-gray-500"
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 20 16"
+                    >
+                      <path
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                      />
+                    </svg>
+                    <p className="text-xs text-gray-500">Add Photo</p>
+                  </div>
                   <input
                     type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
                     className="hidden"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
                   />
                 </label>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="pt-4 flex gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => router.back()}
+            <div className="flex justify-end gap-4 pt-4">
+              <Link href={`/listing/${id}`}>
+                <Button variant="outline" type="button">
+                  Cancel
+                </Button>
+              </Link>
+              <Button 
+                type="submit" 
                 disabled={isSaving}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 text-white"
                 style={{ backgroundColor: primaryColor }}
-                disabled={isSaving}
+                className="text-white hover:opacity-90"
               >
                 {isSaving ? (
                   <>

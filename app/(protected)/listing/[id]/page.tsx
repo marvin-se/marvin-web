@@ -5,20 +5,17 @@ import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Listing } from "@/lib/types"
-import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2, CheckCircle } from "lucide-react"
+import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { getListingDetailById, deleteListing, markAsSold, addToFavorites, removeFromFavorites } from "@/lib/api/listings" 
+import { getListingDetailById, deleteListing, addToFavorites, removeFromFavorites } from "@/lib/api/listings" 
 import FloatingAlert from "@/components/ui/floating-alert";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 
 const primaryColor = "#72C69B"
 
@@ -41,8 +38,6 @@ export default function ListingDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false); 
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
   const [deleteAlert, setDeleteAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
-  const [soldAlert, setSoldAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
-  const [isMarkSoldDialogOpen, setIsMarkSoldDialogOpen] = useState(false);
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -171,25 +166,6 @@ export default function ListingDetailPage() {
     }
   };
 
-  const handleMarkAsSold = () => {
-    setIsMarkSoldDialogOpen(true);
-  };
-
-  const confirmMarkAsSold = async () => {
-    try {
-      await markAsSold(id);
-      setSoldAlert({ visible: true, type: 'success', message: 'Item marked as sold successfully.' });
-      // Refresh listing data to update UI state
-      const updatedListing = await getListingDetailById(id);
-      setListing(updatedListing);
-    } catch (err) {
-      console.error("Failed to mark as sold:", err);
-      setSoldAlert({ visible: true, type: 'error', message: 'Failed to mark item as sold.' });
-    } finally {
-      setIsMarkSoldDialogOpen(false);
-    }
-  };
-
   // DTO Adaptation and flags
   const listingCategory = listing.category?.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'N/A';
   
@@ -225,14 +201,6 @@ export default function ListingDetailPage() {
               Delete
             </Button>
           </div>
-          <Button 
-            className="w-full font-semibold py-3 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200" 
-            variant="ghost"
-            onClick={handleMarkAsSold}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Mark as Sold
-          </Button>
         </div>
       );
     }
@@ -279,17 +247,50 @@ export default function ListingDetailPage() {
         {renderTopBanner()}
 
         <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
-          {/* Left: Image */}
+          {/* Left: Image Carousel */}
           <div>
-            <div className="bg-gray-100 rounded-2xl overflow-hidden relative group mb-4">
-              {/* Use the primary imageUrl from the DTO */}
-              <img 
-                src={listing.imageUrl || "/placeholder.svg"} 
-                alt={listing.title} 
-                className="w-full h-96 object-cover" 
-              />
-            </div>
-            {/* Gallery of multiple images (listing.images) could go here */}
+            {listing.images && listing.images.length > 0 ? (
+              <Carousel className="w-full">
+                <CarouselContent>
+                  {listing.images.map((img, index) => (
+                    <CarouselItem key={index}>
+                      <div className="bg-gray-100 rounded-2xl overflow-hidden relative h-96">
+                        <img 
+                          src={img} 
+                          alt={`${listing.title} - Image ${index + 1}`} 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                {listing.images.length > 1 && (
+                  <>
+                    <CarouselPrevious className="left-2" />
+                    <CarouselNext className="right-2" />
+                  </>
+                )}
+              </Carousel>
+            ) : (
+              <div className="bg-gray-100 rounded-2xl overflow-hidden relative h-96">
+                <img 
+                  src={listing.imageUrl || "/placeholder.svg"} 
+                  alt={listing.title} 
+                  className="w-full h-full object-cover" 
+                />
+              </div>
+            )}
+            
+            {/* Thumbnail Gallery (Optional - can be added later if needed) */}
+            {listing.images && listing.images.length > 1 && (
+               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                 {listing.images.map((img, index) => (
+                   <div key={index} className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border border-gray-200">
+                     <img src={img} alt={`Thumbnail ${index}`} className="w-full h-full object-cover" />
+                   </div>
+                 ))}
+               </div>
+            )}
           </div>
 
           {/* Right: Details, Seller, and Actions */}
@@ -307,21 +308,6 @@ export default function ListingDetailPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between"><p className="text-gray-600">Category</p><p className="font-medium">{listingCategory}</p></div>
                 <div className="flex justify-between"><p className="text-gray-600">University</p><p className="font-medium">{listing.universityName || 'N/A'}</p></div>
-                {/* NOTE: Listing DTO currently lacks created_at */}
-                <div className="flex justify-between">
-                <p className="text-gray-600">Posted</p>
-                <p className="font-medium">
-                    {listing.createdAt 
-                        ? new Date(listing.createdAt).toLocaleDateString()
-                        : 'N/A'}
-                </p>
-            </div>
-            {isOwner && (
-              <>
-              <div className="flex justify-between"><p className="text-gray-600">Favorites</p><p className="font-medium">{listing.favouriteCount ?? 0}</p></div>
-              <div className="flex justify-between"><p className="text-gray-600">Visits</p><p className="font-medium">{listing.visitCount ?? 0}</p></div>
-              </>
-            )}
               </div>
             </div>
 
@@ -394,30 +380,6 @@ export default function ListingDetailPage() {
           onClose={() => setDeleteAlert({ ...deleteAlert, visible: false })}
         />
       )}
-
-      {soldAlert.visible && (
-        <FloatingAlert
-          type={soldAlert.type}
-          title={soldAlert.type === 'success' ? "Success" : "Error"}
-          message={soldAlert.message}
-          onClose={() => setSoldAlert({ ...soldAlert, visible: false })}
-        />
-      )}
-
-      <AlertDialog open={isMarkSoldDialogOpen} onOpenChange={setIsMarkSoldDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Mark Item as Sold?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to mark this item as sold? This will disable further interactions.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmMarkAsSold}>Mark as Sold</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
     </main>
   );
