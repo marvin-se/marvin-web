@@ -238,7 +238,7 @@ export default function ListingDetailPage() {
     }
     
     return (
-        <Link href={`/messages?seller=${listing.sellerId}`} className="flex-1">
+        <Link href={`/messages?seller=${listing.sellerId}&productId=${listing.id}&productName=${encodeURIComponent(listing.title)}&sellerName=${encodeURIComponent(listing.sellerName || sellerProfile?.fullName || 'Seller')}`} className="flex-1">
         <Button className="w-full text-white font-semibold py-3 rounded-lg" style={{ backgroundColor: primaryColor }}>
           Message Seller
         </Button>
