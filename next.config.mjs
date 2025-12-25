@@ -11,7 +11,7 @@ const nextConfig = {
     return [
       {
         source: '/api/proxy/:path*',
-        destination: 'http://localhost:8080/campustrade/:path*',
+        destination: '${process.env.API_BASE_URL}/:path*',
       },
     ]
   },
