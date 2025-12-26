@@ -8,10 +8,11 @@ const nextConfig = {
     unoptimized: true,
   },
   async rewrites() {
+    const apiUrl = process.env.API_BASE_URL || 'http://13.61.8.92:8080/campustrade';
     return [
       {
         source: '/api/proxy/:path*',
-        destination: '${process.env.API_BASE_URL}/:path*',
+        destination: `${apiUrl}/:path*`,
       },
     ]
   },
