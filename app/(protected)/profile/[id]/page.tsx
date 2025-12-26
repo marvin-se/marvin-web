@@ -1,13 +1,15 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import ListingCard from "@/components/listing-card"
 import { PublicProfile, Listing } from "@/lib/types"
 import { Share2, MoreHorizontal, Ban, ShieldCheck } from "lucide-react"
 import api from "@/lib/api"
+import { getUserProfilePicture } from "@/lib/api/user"
+import { getUserListings } from "@/lib/api/listings"
 import FloatingAlert from "@/components/ui/floating-alert"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -27,10 +29,43 @@ export default function UserProfilePage() {
   const userId = params.id as string
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [userListings, setUserListings] = useState<Listing[]>([])
+  const [displayProfilePic, setDisplayProfilePic] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isBlocked, setIsBlocked] = useState(false)
   const [shareAlertVisible, setShareAlertVisible] = useState(false)
   const [blockAlertVisible, setBlockAlertVisible] = useState<{visible: boolean, message: string, type: 'success' | 'error'}>({ visible: false, message: '', type: 'success' })
+
+  const fetchData = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch user profile
+      const profileRes = await api.get<PublicProfile>(`/user/${userId}`);
+      setProfile(profileRes.data);
+
+      // Fetch user listings
+      const listings = await getUserListings(userId);
+      setUserListings(listings);
+
+      // Fetch profile picture
+      try {
+        const picUrl = await getUserProfilePicture(parseInt(userId));
+        setDisplayProfilePic(picUrl);
+      } catch (e) {
+        console.warn("Failed to fetch profile picture url", e);
+      }
+
+    } catch (err: any) {
+      console.error("Failed to fetch user data:", err);
+      // Check if the error indicates the user is blocked (if backend supported it)
+      // For now, we can't know on load.
+      setError("Failed to load user profile.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
     // Redirect to private profile if viewing own profile
@@ -39,28 +74,8 @@ export default function UserProfilePage() {
       return;
     }
 
-    const fetchData = async () => {
-      if (!userId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch user profile
-        const profileRes = await api.get<PublicProfile>(`/user/${userId}`);
-        setProfile(profileRes.data);
-
-        // Fetch user listings
-        const listingsRes = await api.get<Listing[]>(`/user/${userId}/listings`);
-        setUserListings(listingsRes.data);
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-        setError("Failed to load user profile.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
-  }, [userId, user, router])
+  }, [userId, user, router, fetchData])
 
   const handleShare = () => {
     const profileUrl = window.location.href;
@@ -82,17 +97,25 @@ export default function UserProfilePage() {
   const handleBlockUser = async () => {
     try {
       await api.post(`/user/${userId}/block`);
+      setIsBlocked(true);
       setBlockAlertVisible({ visible: true, message: "User has been blocked successfully.", type: 'success' });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to block user:", err);
-      setBlockAlertVisible({ visible: true, message: "Failed to block user.", type: 'error' });
+      if (err.response?.data?.message === "This user is already blocked.") {
+         setIsBlocked(true);
+         setBlockAlertVisible({ visible: true, message: "User was already blocked.", type: 'success' });
+      } else {
+         setBlockAlertVisible({ visible: true, message: "Failed to block user.", type: 'error' });
+      }
     }
   };
 
   const handleUnblockUser = async () => {
     try {
       await api.delete(`/user/${userId}/unblock`);
+      setIsBlocked(false);
       setBlockAlertVisible({ visible: true, message: "User has been unblocked successfully.", type: 'success' });
+      fetchData();
     } catch (err) {
       console.error("Failed to unblock user:", err);
       setBlockAlertVisible({ visible: true, message: "Failed to unblock user.", type: 'error' });
@@ -113,9 +136,40 @@ export default function UserProfilePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">Error</h1>
           <p className="text-gray-600">{error || "User not found"}</p>
-          <Link href="/browse">
-            <Button className="mt-4">Back to Browse</Button>
-          </Link>
+          <div className="flex gap-4 justify-center mt-4">
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Button 
+              onClick={handleUnblockUser} 
+              className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+            >
+              Unblock User
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-xl border border-gray-200 shadow-sm max-w-md">
+          <Ban className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">You have blocked this user</h1>
+          <p className="text-gray-600 mb-6">You cannot view their profile or listings while they are blocked.</p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Button 
+              onClick={handleUnblockUser} 
+              className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+            >
+              Unblock User
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -130,7 +184,7 @@ export default function UserProfilePage() {
           <div className="flex gap-8 mb-8">
             {/* Avatar */}
             <img
-              src={profile.profilePicUrl || "/young-student.avif"}
+              src={displayProfilePic || profile.profilePicUrl || "/young-student.avif"}
               alt={profile.fullName}
               className="w-32 h-32 rounded-full object-cover flex-shrink-0"
             />

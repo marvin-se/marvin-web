@@ -112,6 +112,7 @@ export async function getListingDetailById(id: string): Promise<Listing> {
       sellerName: item.sellerName,
       status: (item.status as 'ACTIVE' | 'SOLD') || 'ACTIVE', // Map status
       isFavourite: item.isFavourite,
+      createdAt: item.createdAt,
     };
 
     return listing;

@@ -31,6 +31,7 @@ export default function EditListingPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]) // URLs of images already on server
   const [newFiles, setNewFiles] = useState<File[]>([]) // New files selected for upload
   const [previewUrls, setPreviewUrls] = useState<string[]>([]) // Previews for new files
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]) // Keys of images to delete on save
 
   const [alert, setAlert] = useState<{
     visible: boolean
@@ -81,24 +82,15 @@ export default function EditListingPage() {
     updatedImages.splice(index, 1);
     setExistingImages(updatedImages);
 
-    // Extract key from URL to delete from server
+    // Extract key from URL to mark for deletion
     try {
         const urlObj = new URL(imageUrl);
         let key = urlObj.pathname;
         if (key.startsWith('/')) key = key.substring(1);
         
-        await deleteListingImage(parseInt(id), key);
+        setImagesToDelete(prev => [...prev, key]);
     } catch (err) {
-        console.error("Failed to delete image from server:", err);
-        setAlert({
-            visible: true,
-            type: 'error',
-            message: "Failed to delete image. Please try again."
-        });
-        // Revert
-        const revertedImages = [...updatedImages];
-        revertedImages.splice(index, 0, imageUrl);
-        setExistingImages(revertedImages);
+        console.error("Failed to parse image URL:", err);
     }
   }
 
@@ -116,9 +108,24 @@ export default function EditListingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (existingImages.length + newFiles.length === 0) {
+      setAlert({
+        visible: true,
+        type: 'error',
+        message: "You must have at least one photo for the listing."
+      })
+      return
+    }
+
     setIsSaving(true)
 
     try {
+      // 0. Process Deletions
+      if (imagesToDelete.length > 0) {
+        await Promise.all(imagesToDelete.map(key => deleteListingImage(parseInt(id), key)));
+      }
+
       // 1. Update Metadata
       await updateListing(id, {
         title,

@@ -46,6 +46,11 @@ export interface PublicProfile {
   description: string | null;
 }
 
+export interface BlockListResponse {
+    userList: User[];
+    numberOfBlocked: number;
+}
+
 // Seller type - represents a User in the context of a listing
 export type Seller = Pick<User, 'id' | 'fullName' | 'university' | 'email'> & {
   // Optional display-only fields
