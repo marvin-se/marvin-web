@@ -5,10 +5,11 @@ import { useParams, useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Listing } from "@/lib/types"
-import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2, Ban, MoreHorizontal, ShieldCheck } from "lucide-react"
+import { Heart, Share2, ArrowLeft, Edit, AlertTriangle, PackageCheck, Trash2, Ban, MoreHorizontal, ShieldCheck, Eye } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { getListingDetailById, deleteListing, addToFavorites, removeFromFavorites } from "@/lib/api/listings" 
 import api from "@/lib/api"
+import { getUserProfilePicture } from "@/lib/api/user"
 import FloatingAlert from "@/components/ui/floating-alert";
 import {
   Carousel,
@@ -23,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 const primaryColor = "#72C69B"
 
@@ -44,15 +46,17 @@ export default function ListingDetailPage() {
   // Data State
   const [listing, setListing] = useState<Listing | null>(null);
   const [sellerProfile, setSellerProfile] = useState<any>(null); // To store fetched seller details if needed
+  const [sellerProfilePic, setSellerProfilePic] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  
   // UI State 
   const [isFavorite, setIsFavorite] = useState(false); 
   const [isBlocked, setIsBlocked] = useState(false);
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
   const [deleteAlert, setDeleteAlert] = useState<{visible: boolean, type: 'success' | 'error', message: string}>({ visible: false, type: 'success', message: '' });
   const [blockAlertVisible, setBlockAlertVisible] = useState<{visible: boolean, message: string, type: 'success' | 'error'}>({ visible: false, message: '', type: 'success' });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -64,6 +68,16 @@ export default function ListingDetailPage() {
         const fetchedListing = await getListingDetailById(id);
         setListing(fetchedListing);
         setIsFavorite(!!fetchedListing.isFavourite);
+
+        // Fetch seller profile picture
+        if (fetchedListing.sellerId) {
+            try {
+                const picUrl = await getUserProfilePicture(fetchedListing.sellerId);
+                setSellerProfilePic(picUrl);
+            } catch (e) {
+                console.warn("Failed to fetch seller profile picture", e);
+            }
+        }
 
         // If sellerName is missing but we have sellerId, try to fetch seller profile
         if (!fetchedListing.sellerName && fetchedListing.sellerId) {
@@ -320,11 +334,14 @@ export default function ListingDetailPage() {
                 <CarouselContent>
                   {listing.images.map((img, index) => (
                     <CarouselItem key={index}>
-                      <div className="bg-gray-100 rounded-2xl overflow-hidden relative h-96">
+                      <div 
+                        className="bg-gray-100 rounded-2xl overflow-hidden relative h-96 cursor-pointer"
+                        onClick={() => setSelectedImage(img)}
+                      >
                         <img 
                           src={img} 
                           alt={`${listing.title} - Image ${index + 1}`} 
-                          className="w-full h-full object-cover" 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
                         />
                       </div>
                     </CarouselItem>
@@ -338,11 +355,14 @@ export default function ListingDetailPage() {
                 )}
               </Carousel>
             ) : (
-              <div className="bg-gray-100 rounded-2xl overflow-hidden relative h-96">
+              <div 
+                className="bg-gray-100 rounded-2xl overflow-hidden relative h-96 cursor-pointer"
+                onClick={() => setSelectedImage(listing.imageUrl || "/placeholder.svg")}
+              >
                 <img 
                   src={listing.imageUrl || "/placeholder.svg"} 
                   alt={listing.title} 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
                 />
               </div>
             )}
@@ -351,7 +371,11 @@ export default function ListingDetailPage() {
             {listing.images && listing.images.length > 1 && (
                <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                  {listing.images.map((img, index) => (
-                   <div key={index} className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border border-gray-200">
+                   <div 
+                     key={index} 
+                     className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                     onClick={() => setSelectedImage(img)}
+                   >
                      <img src={img} alt={`Thumbnail ${index}`} className="w-full h-full object-cover" />
                    </div>
                  ))}
@@ -361,7 +385,19 @@ export default function ListingDetailPage() {
 
           {/* Right: Details, Seller, and Actions */}
           <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-900">{listing.title}</h1>
+            <div className="flex justify-between items-start">
+                <h1 className="text-3xl font-bold text-gray-900">{listing.title}</h1>
+                <div className="flex gap-4 text-gray-500 text-sm">
+                    <div className="flex items-center gap-1" title="Favorites">
+                        <Heart className="h-4 w-4" />
+                        <span>{listing.favouriteCount || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1" title="Views">
+                        <Eye className="h-4 w-4" />
+                        <span>{listing.visitCount || 0}</span>
+                    </div>
+                </div>
+            </div>
             
             {showSecondaryActions && (
               <p className="text-3xl font-bold" style={{ color: primaryColor }}>
@@ -394,7 +430,7 @@ export default function ListingDetailPage() {
               <Link href={isOwner ? '/profile' : `/profile/${listing.sellerId || listing.created_by}`} className="block flex-1"> 
                 <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg h-full border hover:bg-gray-100 transition-colors">
                   <img 
-                    src={isValidImageUrl(sellerProfile?.profilePicUrl) ? sellerProfile.profilePicUrl : "/young-student.avif"} 
+                    src={sellerProfilePic || (isValidImageUrl(sellerProfile?.profilePicUrl) ? sellerProfile.profilePicUrl : "/young-student.avif")} 
                     alt={listing.sellerName || sellerProfile?.fullName || "Seller"} 
                     className="w-14 h-14 rounded-full object-cover"
                   />
@@ -485,6 +521,19 @@ export default function ListingDetailPage() {
           onClose={() => setBlockAlertVisible({ ...blockAlertVisible, visible: false })}
         />
       )}
+
+      <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-transparent border-none shadow-none">
+           <DialogTitle className="sr-only">Zoomed Listing Image</DialogTitle>
+           <div className="relative w-full h-[80vh] flex items-center justify-center pointer-events-none">
+             <img 
+               src={selectedImage || undefined} 
+               alt="Zoomed listing image" 
+               className="max-w-full max-h-full object-contain pointer-events-auto"
+             />
+           </div>
+        </DialogContent>
+      </Dialog>
 
     </main>
   );

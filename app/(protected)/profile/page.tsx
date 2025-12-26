@@ -29,10 +29,10 @@ import {
 import FloatingAlert from "@/components/ui/floating-alert"
 
 import { useAuth } from "@/contexts/AuthContext";
-import { User, Listing, SalesResponse, PurchaseResponse } from "@/lib/types";
+import { User, Listing, SalesResponse, PurchaseResponse, BlockListResponse } from "@/lib/types";
 import api from "@/lib/api";
 import { getUserListings } from "@/lib/api/listings";
-import { presignProfilePicture, saveProfilePicture, getUserProfilePicture } from "@/lib/api/user";
+import { presignProfilePicture, saveProfilePicture, getUserProfilePicture, getBlockedUsers, unblockUser } from "@/lib/api/user";
 import ImageCropper from "@/components/image-cropper";
 
 const primaryColor = "#72C69B";
@@ -71,6 +71,11 @@ export default function ProfilePage() {
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
   const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
+
+  // Blocked Users State
+  const [blockedUsersOpen, setBlockedUsersOpen] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<User[]>([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
 
   const [shareAlertVisible, setShareAlertVisible] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -210,6 +215,29 @@ export default function ProfilePage() {
     setProfile(user);
     fetchListings();
   }, [user]);
+
+  const fetchBlockedUsers = async () => {
+    setBlockedUsersLoading(true);
+    try {
+      const response = await getBlockedUsers();
+      setBlockedUsers(response.userList);
+    } catch (err) {
+      console.error("Failed to fetch blocked users:", err);
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  };
+
+  const handleUnblock = async (userId: number) => {
+    try {
+      await unblockUser(userId);
+      // Refresh list
+      await fetchBlockedUsers();
+    } catch (err) {
+      console.error("Failed to unblock user:", err);
+      alert("Failed to unblock user.");
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!profile) return;
@@ -439,6 +467,16 @@ export default function ProfilePage() {
                   className="rounded-lg px-4 py-2 text-sm border-gray-300"
                 >
                   Change Password
+                </Button>
+                <Button
+                  onClick={() => {
+                    setBlockedUsersOpen(true);
+                    fetchBlockedUsers();
+                  }}
+                  variant="outline"
+                  className="rounded-lg px-4 py-2 text-sm border-gray-300"
+                >
+                  Blocked Users
                 </Button>
                 <Button
                   onClick={() => setDeleteAccountOpen(true)}
@@ -776,6 +814,58 @@ export default function ProfilePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Blocked Users Dialog */}
+      <Dialog open={blockedUsersOpen} onOpenChange={setBlockedUsersOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Blocked Users</DialogTitle>
+            <DialogDescription>
+              Manage the users you have blocked.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="max-h-[400px] overflow-y-auto py-4">
+            {blockedUsersLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading...</div>
+            ) : blockedUsers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                You haven't blocked any users.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {blockedUsers.map((blockedUser) => (
+                  <div key={blockedUser.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={blockedUser.profilePicUrl || "/young-student.avif"} 
+                        alt={blockedUser.fullName} 
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-medium text-sm">{blockedUser.fullName}</p>
+                        <p className="text-xs text-gray-500">{blockedUser.university?.name || 'No University'}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => handleUnblock(blockedUser.id)}
+                    >
+                      Unblock
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setBlockedUsersOpen(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
