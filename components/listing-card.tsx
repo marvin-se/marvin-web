@@ -123,6 +123,7 @@ export default function ListingCard({
                   }
                   setConfirmOpen(false)
                 }}
+                className="bg-[#72C69B] text-white hover:bg-[#5fb085]"
               >
                 Remove
               </AlertDialogAction>

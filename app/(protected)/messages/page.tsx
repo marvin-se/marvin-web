@@ -714,7 +714,7 @@ export default function MessagesPage() {
                         >
                           <p>{message.content}</p>
                           <p className="text-[11px] opacity-75 mt-1">
-                            {new Date(message.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(message.sentAt).toLocaleDateString('en-US', { month: "short", day: "numeric" })} {new Date(message.sentAt).toLocaleTimeString('en-US', { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
                       </div>
