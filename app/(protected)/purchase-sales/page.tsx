@@ -5,9 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import api from "@/lib/api";
 import { getUserListings, getListingImages } from "@/lib/api/listings";
-import { Transaction, SalesResponse, PurchaseResponse, Listing, User } from "@/lib/types";
+import { getSalesHistory, getPurchasesHistory } from "@/lib/api/user";
+import { Transaction, Listing, User } from "@/lib/types";
 
 // A simple component to display a transaction item
 function TransactionCard({ transaction, type }: { transaction: Transaction, type: 'purchase' | 'sale' }) {
@@ -54,8 +54,8 @@ export default function PurchaseSalesPage() {
       setLoading(true);
       try {
         const [salesRes, purchasesRes, listings] = await Promise.all([
-          api.get<SalesResponse>('/user/sales'),
-          api.get<PurchaseResponse>('/user/purchases'),
+          getSalesHistory(),
+          getPurchasesHistory(),
           getUserListings(user.id)
         ]);
 
@@ -83,8 +83,8 @@ export default function PurchaseSalesPage() {
         };
 
         let allSales: Transaction[] = [];
-        if (salesRes.data && salesRes.data.transactions) {
-          allSales = await enrichTransactions(salesRes.data.transactions);
+        if (salesRes.transactions && salesRes.transactions.length > 0) {
+          allSales = await enrichTransactions(salesRes.transactions);
         }
 
         // Process manually sold listings
@@ -110,8 +110,8 @@ export default function PurchaseSalesPage() {
         
         setSales(allSales);
         
-        if (purchasesRes.data && purchasesRes.data.transactions) {
-          const enrichedPurchases = await enrichTransactions(purchasesRes.data.transactions);
+        if (purchasesRes.transactions && purchasesRes.transactions.length > 0) {
+          const enrichedPurchases = await enrichTransactions(purchasesRes.transactions);
           setPurchases(enrichedPurchases);
         }
       } catch (error) {

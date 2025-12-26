@@ -29,10 +29,10 @@ import {
 import FloatingAlert from "@/components/ui/floating-alert"
 
 import { useAuth } from "@/contexts/AuthContext";
-import { User, Listing, SalesResponse, PurchaseResponse, BlockListResponse } from "@/lib/types";
+import { User, Listing, BlockListResponse } from "@/lib/types";
 import api from "@/lib/api";
 import { getUserListings } from "@/lib/api/listings";
-import { presignProfilePicture, saveProfilePicture, getUserProfilePicture, getBlockedUsers, unblockUser } from "@/lib/api/user";
+import { presignProfilePicture, saveProfilePicture, getUserProfilePicture, getBlockedUsers, unblockUser,getSalesHistory, getPurchasesHistory  } from "@/lib/api/user";
 import ImageCropper from "@/components/image-cropper";
 
 const primaryColor = "#72C69B";
@@ -178,20 +178,15 @@ export default function ProfilePage() {
         const soldListingsCount = allListings.filter(l => l.status === 'SOLD').length;
 
         // Fetch sales history
-        const salesResponse = await api.get<SalesResponse>('/user/sales');
-        let transactionCount = 0;
-        if (salesResponse.data && salesResponse.data.transactions) {
-          transactionCount = salesResponse.data.transactions.length;
-        }
+        const salesResponse = await getSalesHistory();
+        const transactionCount = salesResponse.transactions.length;
         
         // Use the larger of the two to account for both manual marks and actual transactions
         setSalesCount(Math.max(soldListingsCount, transactionCount));
 
         // Fetch purchase history
-        const purchasesResponse = await api.get<PurchaseResponse>('/user/purchases');
-        if (purchasesResponse.data && purchasesResponse.data.transactions) {
-          setPurchasesCount(purchasesResponse.data.transactions.length);
-        }
+        const purchasesResponse = await getPurchasesHistory();
+        setPurchasesCount(purchasesResponse.transactions.length);
 
         // Fetch Profile Picture URL
         try {

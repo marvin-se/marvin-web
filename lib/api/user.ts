@@ -1,5 +1,5 @@
 import api from './index';
-import { BlockListResponse } from '../types';
+import { BlockListResponse, SalesResponse, PurchaseResponse } from '../types';
 
 export interface PresignResponse {
     key: string;
@@ -36,4 +36,38 @@ export async function getBlockedUsers(): Promise<BlockListResponse> {
 
 export async function unblockUser(userId: number | string): Promise<void> {
     await api.delete(`/user/${userId}/unblock`);
+}
+
+/**
+ * Fetches sales history for the current user.
+ * Returns empty array if no sales found (backend throws exception for empty).
+ */
+export async function getSalesHistory(): Promise<SalesResponse> {
+    try {
+        const response = await api.get<SalesResponse>('/user/sales');
+        return response.data;
+    } catch (error: any) {
+        // Backend throws RuntimeException "You did not sold any item!" when empty
+        if (error.response?.status === 500 || error.response?.data?.message?.includes('did not sold')) {
+            return { transactions: [] };
+        }
+        throw error;
+    }
+}
+
+/**
+ * Fetches purchase history for the current user.
+ * Returns empty array if no purchases found (backend throws exception for empty).
+ */
+export async function getPurchasesHistory(): Promise<PurchaseResponse> {
+    try {
+        const response = await api.get<PurchaseResponse>('/user/purchases');
+        return response.data;
+    } catch (error: any) {
+        // Backend throws RuntimeException "You did not purchase any item!" when empty
+        if (error.response?.status === 500 || error.response?.data?.message?.includes('did not purchase')) {
+            return { transactions: [] };
+        }
+        throw error;
+    }
 }

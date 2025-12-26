@@ -29,6 +29,7 @@ interface LastMessageDTO {
   senderId: number
   content: string
   isRead: boolean
+  read?: boolean  // Backend might serialize as 'read' instead of 'isRead'
   sentAt: string
 }
 
@@ -48,6 +49,7 @@ interface ConversationDTO {
   lastMessage: LastMessageDTO | null
   messages?: MessageDTO[]
   imageUrl?: string  // Product image URL from backend
+  unreadCount?: number  // Number of unread messages
 }
 
 export default function MessagesPage() {
@@ -67,6 +69,7 @@ export default function MessagesPage() {
   const [isProductSold, setIsProductSold] = useState(false)
   const [isMarkingSold, setIsMarkingSold] = useState(false)
   const [productSellerId, setProductSellerId] = useState<number | null>(null)
+  const [soldProducts, setSoldProducts] = useState<Set<number>>(new Set())
   
   // WebSocket
   const stompClientRef = useRef<any>(null)
@@ -149,7 +152,16 @@ export default function MessagesPage() {
 
             // Update lastMessage AND persist messages for the active conversation
             setConversations((prevConvos) => prevConvos.map(c => {
-              if (c.id !== selectedChatId) return c
+              if (c.id !== selectedChatId) {
+                // For non-active conversations, increment unread if sender is not current user
+                if (normalized.senderId !== (user?.id ?? 0)) {
+                  return {
+                    ...c,
+                    unreadCount: (c.unreadCount || 0) + 1
+                  }
+                }
+                return c
+              }
               
               // Append to existing messages array (with dedupe)
               const existingMessages = c.messages || []
@@ -332,13 +344,40 @@ export default function MessagesPage() {
     const loadConversation = async () => {
       if (selectedChatId && selectedChatId > 0) {
         const activeChat = conversations.find(c => c.id === selectedChatId)
-        if (activeChat && !activeChat.messages) {
-          loadFullConversation(selectedChatId, activeChat.userId, activeChat.product.id)
-        } else if (activeChat?.messages) {
-          setCurrentMessages(activeChat.messages)
+        
+        if (!activeChat) return
+        
+        // Reset unread count and mark lastMessage as read for this conversation (UI update)
+        setConversations(prev => prev.map(c => 
+          c.id === selectedChatId 
+            ? { 
+                ...c, 
+                unreadCount: 0,
+                lastMessage: c.lastMessage ? { ...c.lastMessage, isRead: true, read: true } : null
+              } 
+            : c
+        ))
+        
+        // Always call the backend to mark messages as read
+        // This API call triggers backend's markMessagesAsRead via getConversation
+        try {
+          const response = await api.get(`/messages/conversations/${activeChat.userId}/${activeChat.product.id}`)
+          const fullConvo = response.data as ConversationDTO
+          
+          // Update messages from the fresh response
+          setConversations(prev => prev.map(c => 
+            c.id === selectedChatId ? { ...c, messages: fullConvo.messages } : c
+          ))
+          setCurrentMessages(fullConvo.messages || [])
+        } catch (error) {
+          console.error("Failed to load/mark conversation as read:", error)
+          // Fallback to cached messages if API fails
+          if (activeChat?.messages) {
+            setCurrentMessages(activeChat.messages)
+          }
         }
         
-        // Fetch product details to get sellerId
+        // Fetch product details to get sellerId and sold status
         if (activeChat?.product?.id) {
           try {
             console.log("Fetching product details for id:", activeChat.product.id)
@@ -349,7 +388,13 @@ export default function MessagesPage() {
             console.log("Extracted sellerId:", sellerId, "Current user:", user?.id)
             
             setProductSellerId(sellerId)
-            setIsProductSold(productData.status === 'SOLD')
+            const isSold = productData.status === 'SOLD'
+            setIsProductSold(isSold)
+            
+            // Track sold products globally
+            if (isSold) {
+              setSoldProducts(prev => new Set(prev).add(activeChat.product.id))
+            }
           } catch (error) {
             console.error("Failed to fetch product details:", error)
             setProductSellerId(null)
@@ -368,7 +413,13 @@ export default function MessagesPage() {
             console.log("Extracted sellerId (phantom):", sellerId, "Current user:", user?.id)
             
             setProductSellerId(sellerId)
-            setIsProductSold(productData.status === 'SOLD')
+            const isSold = productData.status === 'SOLD'
+            setIsProductSold(isSold)
+            
+            // Track sold products globally
+            if (isSold) {
+              setSoldProducts(prev => new Set(prev).add(targetProductId))
+            }
           } catch (error) {
             console.error("Failed to fetch product details:", error)
             setProductSellerId(null)
@@ -394,6 +445,10 @@ export default function MessagesPage() {
     try {
       await markAsSold(activeChat.id.toString())
       setIsProductSold(true)
+      
+      // Track this product as sold globally so all conversations see it
+      const productId = activeChat.product.id
+      setSoldProducts(prev => new Set(prev).add(productId))
     } catch (error) {
       console.error("Failed to mark item as sold:", error)
     } finally {
@@ -468,6 +523,12 @@ export default function MessagesPage() {
             const response = await api.get(`/messages/conversations/${receiverId}/${productId}`)
             const realConvo = response.data as ConversationDTO
             
+            // Preserve the phantom chat's imageUrl if real conversation doesn't have one
+            const phantomChat = conversations.find(c => c.id === -999)
+            if (phantomChat?.imageUrl && !realConvo.imageUrl) {
+              realConvo.imageUrl = phantomChat.imageUrl
+            }
+            
             // Replace phantom chat with real conversation
             setConversations(prev => prev.map(c => 
               c.id === -999 ? realConvo : c
@@ -538,11 +599,21 @@ export default function MessagesPage() {
                     }}
                   >
                     <div className="flex gap-3">
-                      <img
-                        src={chat.imageUrl || "/placeholder.svg"}
-                        alt="Product"
-                        className="w-10 h-10 rounded-full bg-gray-300 object-cover"
-                      />
+                      <div className="relative">
+                        <img
+                          src={chat.imageUrl || "/placeholder.svg"}
+                          alt="Product"
+                          className="w-10 h-10 rounded-full bg-gray-300 object-cover"
+                        />
+                        {/* Unread badge - check both isRead and read (Jackson serialization) */}
+                        {chat.lastMessage && 
+                          !(chat.lastMessage.isRead || chat.lastMessage.read) && 
+                          chat.lastMessage.senderId !== user?.id && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-bold" style={{ backgroundColor: primaryColor }}>
+                            {(chat.unreadCount && chat.unreadCount > 9) ? '9+' : (chat.unreadCount || 1)}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="font-semibold truncate" style={{ color: secondaryColor }}>
@@ -610,7 +681,8 @@ export default function MessagesPage() {
 
               {/* Messages Body */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {isProductSold && (
+                {/* Show sold warning if product is in soldProducts set OR isProductSold */}
+                {(isProductSold || (activeChat?.product?.id && soldProducts.has(activeChat.product.id))) && (
                   <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
                     <AlertTriangle className="h-4 w-4" />
                     <span className="text-sm font-medium">This item has been marked as sold</span>
@@ -661,21 +733,21 @@ export default function MessagesPage() {
               {/* Input Area */}
               <div className="p-4 border-t border-gray-200 flex gap-2">
                 <Input
-                  placeholder={isProductSold ? "This item is sold" : "Type a message..."}
+                  placeholder={(isProductSold || (activeChat?.product?.id && soldProducts.has(activeChat.product.id))) ? "This item is sold" : "Type a message..."}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === "Enter") handleSendMessage()
                   }}
                   className="rounded-lg border-gray-300"
-                  disabled={isProductSold}
+                  disabled={isProductSold || (activeChat?.product?.id ? soldProducts.has(activeChat.product.id) : false)}
                 />
                 <Button
                   onClick={handleSendMessage}
                   className="text-white rounded-lg"
                   style={{ backgroundColor: primaryColor }}
                   size="icon"
-                  disabled={isProductSold}
+                  disabled={isProductSold || (activeChat?.product?.id ? soldProducts.has(activeChat.product.id) : false)}
                 >
                   ➤
                 </Button>
